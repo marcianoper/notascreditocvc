@@ -260,22 +260,69 @@ function openWA(text, phone){
   }
 }
 
-/* ========= HELPERS TICKET (58mm, 32 columnas) ========= */
-const COLS = 32;
+/* ========= HELPERS TICKET (80mm, 48 columnas) ========= */
+const COLS = 48;         // 80mm (font A). Si tu impresora real usa 42/64, cambia aquí.
+const EOL  = "\r\n";     // CRLF para RawBT
 const isAndroid = /Android/i.test(navigator.userAgent);
-function cut(s, n){ return String(s??'').toString().slice(0, n); }
-function padR(s, n){ s=String(s??''); return s.length>=n ? s.slice(0,n) : s + ' '.repeat(n - s.length); }
-function padL(s, n){ s=String(s??''); return s.length>=n ? s.slice(-n) : ' '.repeat(n - s.length) + s; }
-function line(){ return '-'.repeat(COLS); }
-function center(text){ const t=String(text??''); const sp=Math.max(0, Math.floor((COLS - t.length)/2)); return ' '.repeat(sp)+t; }
-function twoColsL(l, r, width=COLS){ const left = cut(l, Math.max(0, width - String(r).length - 1)); const right = String(r); return padR(left, width - right.length - 1) + ' ' + right; }
 
-/* ========= RAWBT SENDER ========= */
+const cut = (s,n)=> String(s??'').slice(0,n);
+const padR=(s,n)=>{s=String(s??'');return s.length>=n?s.slice(0,n):s+' '.repeat(n-s.length);}
+const padL=(s,n)=>{s=String(s??'');return s.length>=n?s.slice(-n):' '.repeat(n-s.length)+s;}
+const line=()=> '-'.repeat(COLS);
+const center=t=>{t=String(t??''); const sp=Math.max(0, Math.floor((COLS - t.length)/2)); return ' '.repeat(sp)+t;}
+const twoColsL=(l,r,w=COLS)=>{r=String(r); const left=cut(l, Math.max(0, w - r.length - 1)); return padR(left, w - r.length - 1)+' '+r;};
+
+// Intent launcher (texto)
 function rawbtSendText(text){
-  const data = encodeURIComponent(text);
-  const intentUrl = `intent:${data}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
-  // Algunos navegadores bloquean _blank; ir directo a la URL del intent:
-  window.location.href = intentUrl;
+  const payload = encodeURIComponent(text);
+  const intent  = `intent:${payload}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+  const a = document.createElement('a');
+  a.setAttribute('href', intent);
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>document.body.removeChild(a), 50);
+}
+
+// Intent launcher (imagen base64) — fallback para tickets largos
+function rawbtSendImageBase64(dataUrl){
+  const base = dataUrl.replace(/^data:/,''); // "image/png;base64,AAAA..."
+  const intent = `intent:${base}#Intent;scheme=rawbt:data;package=ru.a402d.rawbtprinter;end;`;
+  const a = document.createElement('a');
+  a.setAttribute('href', intent);
+  a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>document.body.removeChild(a), 50);
+}
+
+// Render de texto a PNG (monoespaciado)
+function ticketToPng(text, widthPx=576, fontSize=22){
+  return new Promise(resolve=>{
+    const lines = text.split(/\r?\n/);
+    const lineH = Math.round(fontSize * 1.25);
+    const heightPx = Math.max(200, lineH * (lines.length + 3));
+
+    const c = document.createElement('canvas');
+    c.width = widthPx;
+    c.height = heightPx;
+    const ctx = c.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,c.width,c.height);
+
+    ctx.fillStyle = '#000000';
+    ctx.font = `bold ${fontSize}px ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace`;
+    ctx.textBaseline = 'top';
+
+    const padX = 8;
+    let y = 8;
+    for(const ln of lines){
+      ctx.fillText(ln, padX, y);
+      y += lineH;
+    }
+    resolve(c.toDataURL('image/png'));
+  });
 }
 
 /* ========================= STATE (SLOTS + GUARD) ========================= */
@@ -364,6 +411,7 @@ $('#btnBandeja').addEventListener('click', loadBandeja);
 $('#btnDiaA4').addEventListener('click', imprimirDiaA4);
 $('#btnDiaCSV').addEventListener('click', exportDiaCSV);
 
+// Cambios de cliente/teléfono ligados al slot activo
 cliSelect.addEventListener('change', ()=>{
   slotState[slotActive].cliente_id = cliSelect.value || null;
   const c = getClient(slotState[slotActive].cliente_id);
@@ -692,9 +740,8 @@ async function exportNotaCSV(nota_id){
   const a=document.createElement('a'); a.href=url; a.download=`nota_${nota.folio}.csv`; a.click(); URL.revokeObjectURL(url);
 }
 
-/* ========================= TICKET RAWBT ========================= */
+/* ========================= TICKET RAWBT (80mm) ========================= */
 async function imprimirNotaRawBT(nota_id){
-  // Guard: Android + RawBT
   if(!isAndroid){
     alert('Para ticket directo usa Android con RawBT. Te abro A4 como respaldo.');
     return imprimirNotaA4(nota_id);
@@ -708,37 +755,46 @@ async function imprimirNotaRawBT(nota_id){
   const folio   = nota.folio || '';
   const obs     = (nota.observaciones || '').trim();
 
+  // Texto 80mm
   let out = "";
-  out += center(STORE_NAME) + "\n";
-  out += center("NOTA A CRÉDITO") + "\n";
-  out += line() + "\n";
-  out += twoColsL(`Folio: ${folio}`, fecha) + "\n";
-  out += twoColsL(`Cliente: ${cut(cliente, 20)}`, `Vence: ${vence}`) + "\n";
-  out += line() + "\n";
-  out += "Prod               Kg   P.Unit   Importe\n";
-  out += line() + "\n";
+  out += center(STORE_NAME) + EOL;
+  out += center("NOTA A CRÉDITO") + EOL;
+  out += line() + EOL;
+  out += twoColsL(`Folio: ${folio}`, fecha) + EOL;
+  out += twoColsL(`Cliente: ${cut(cliente, 28)}`, `Vence: ${vence}`) + EOL;
+  out += line() + EOL;
+  out += "Producto                   Kg   P.Unit   Importe" + EOL;
+  out += line() + EOL;
 
   (det||[]).forEach(d=>{
-    const prod = cut(d.producto, 18);
+    const prod = cut(d.producto, 25);
     const kg   = padL(to2(d.cantidad), 5);
-    const pu   = padL(to2(d.precio),   7);
+    const pu   = padL(to2(d.precio),   8);
     const imp  = padL(to2(d.importe),  8);
-    out += `${padR(prod,18)} ${kg} ${pu} ${imp}\n`;
+    out += `${padR(prod,25)}  ${kg} ${pu} ${imp}${EOL}`;
   });
 
-  out += line() + "\n";
-  out += twoColsL("TOTAL:", `$${to2(nota.total)}`) + "\n";
-  out += twoColsL("SALDO:", `$${to2(nota.saldo)}`) + "\n";
-  if(obs){ out += line() + "\n" + "Obs: " + obs + "\n"; }
-  out += line() + "\n";
-  out += center("¡Gracias por su preferencia!") + "\n";
-  out += "\n\n\n"; // feed
+  out += line() + EOL;
+  out += twoColsL("TOTAL:", `$${to2(nota.total)}`) + EOL;
+  out += twoColsL("SALDO:", `$${to2(nota.saldo)}`) + EOL;
+  if(obs){
+    out += line() + EOL;
+    const wrap = s => s.match(new RegExp(`.{1,${COLS}}`, 'g')) || [];
+    wrap("Obs: " + obs).forEach(l => out += l + EOL);
+  }
+  out += line() + EOL;
+  out += center("¡Gracias por su preferencia!") + EOL + EOL + EOL;
 
   try{
-    rawbtSendText(out); // Lanza el Intent a RawBT
+    if(out.length <= 1800){
+      rawbtSendText(out);                // Enviar como texto (rápido)
+    }else{
+      const dataUrl = await ticketToPng(out, 576, 22); // Fallback: imagen
+      rawbtSendImageBase64(dataUrl);
+    }
   }catch(e){
     console.error(e);
-    alert('No fue posible abrir RawBT. Verifica que esté instalado y configurado.');
+    alert('No fue posible abrir RawBT. Verifica que esté instalado, configurado y con la impresora enlazada.');
   }
 }
 
@@ -767,9 +823,9 @@ async function imprimirDiaA4(){
     byClient[cliente].notas.push(n);
   });
   (det||[]).forEach(d=>{
-    const n=(notas||[]).find(x=>x.id===d.nota_id);
-    const cliente=n?.clientes?.nombre || '—';
-    byClient[cliente].items.push({ folio:n?.folio, ...d });
+    const nn=(notas||[]).find(x=>x.id===d.nota_id);
+    const cliente=nn?.clientes?.nombre || '—';
+    byClient[cliente].items.push({ folio:nn?.folio, ...d });
   });
 
   const el=$('#printArea'); el.style.display='block';
