@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VDC360° — Notas a Crédito (Slots A/B + Reporte Diario)</title>
+  <title>VDC360° — Notas a Crédito (Slots A/B + Reporte Diario) bueno</title>
   <style>
     :root{--ink:#111;--brand:#0a7a3b;--muted:#6b7280;--bg:#f6f7f8;--card:#fff}
     *{box-sizing:border-box}
@@ -36,25 +36,23 @@
     .btn-sm{padding:4px 8px;font-size:12px}
     .cell-editing input{width:100%; padding:6px; font-size:14px}
 
-    /* ====== IMPRESIÓN ====== */
+    /* ====== IMPRESIÓN (queda por si usas A4 algún día) ====== */
     @media print{
       body *{visibility:hidden}
       #printArea, #printArea *{visibility:visible}
       #printArea{position:fixed; left:0; top:0}
-      /* A4 */
       #printArea:not(.ticket80){width:210mm; padding:12mm}
       #printArea:not(.ticket80) h3{margin:0 0 6mm 0}
       #printArea:not(.ticket80) table{width:100%; border-collapse:collapse}
       #printArea:not(.ticket80) th, #printArea:not(.ticket80) td{border:1px solid #aaa; padding:4px; font-size:12px}
-      /* Ticket 80mm (HTML) */
+      /* Ticket 80mm (HTML – no lo usamos, pero no estorba) */
       #printArea.ticket80{width:80mm; padding:3mm}
       #printArea.ticket80 .tk-header{ text-align:center; font-size:12px; line-height:1.2; margin-bottom:6px }
       #printArea.ticket80 .tk-header .store{ font-weight:700; font-size:14px }
       #printArea.ticket80 .tk-meta{ font-size:11px; margin-bottom:6px }
       #printArea.ticket80 .tk-line{ border-top:1px dashed #000; margin:6px 0 }
       #printArea.ticket80 .tk-items{ width:100%; font-size:11px; border-collapse:collapse }
-      #printArea.ticket80 .tk-items th,
-      #printArea.ticket80 .tk-items td{ padding:2px 0; }
+      #printArea.ticket80 .tk-items th, #printArea.ticket80 .tk-items td{ padding:2px 0; }
       #printArea.ticket80 .right{ float:right }
       #printArea.ticket80 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace }
       #printArea.ticket80 .totals{ font-size:12px; font-weight:700; margin-top:4px }
@@ -66,7 +64,7 @@
 </head>
 <body>
 <header>
-  <h1>VDC360° · Notas a Crédito (Slots A/B + Reporte Diario)</h1>
+  <h1>VDC360° · Notas a Crédito (Slots A/B + Reporte Diario) bueno</h1>
 </header>
 
 <main>
@@ -238,17 +236,15 @@
   <section class="card">
     <div class="flex">
       <button class="btn btn-ghost" id="btnWA">WhatsApp Cuenta</button>
-      <button class="btn btn-ghost" id="btnImprimir">Imprimir A4</button>
-      <button class="btn btn-ghost" id="btnImprimir80">Imprimir 80mm</button>
-      <!-- NUEVO: impresión directa ESC/POS por RawBT -->
-      <button class="btn btn-ghost" id="btnImprimir80RawBT">Imprimir 80mm (RawBT)</button>
+      <!-- ÚNICO BOTÓN DE IMPRESIÓN -->
+      <button class="btn btn-ghost" id="btnRawBT80">Imprimir 80mm (RawBT)</button>
       <button class="btn btn-ghost" id="btnCSV">Exportar CSV</button>
       <button class="btn btn-ghost danger right" id="btnCerrar">Cerrar Nota</button>
     </div>
   </section>
 </main>
 
-<!-- PRINT AREA + CATÁLOGO -->
+<!-- PRINT AREA + CATÁLOGO (queda oculto) -->
 <div id="printArea" style="display:none"></div>
 <datalist id="catProductos"></datalist>
 
@@ -375,9 +371,7 @@ document.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && document.activ
 $('#btnContinuar').addEventListener('click', continuarNota);
 $('#btnAgregar').addEventListener('click', addPartida);
 $('#btnWA').addEventListener('click', ()=> activeNota() && waNota(activeNota().id));
-$('#btnImprimir').addEventListener('click', ()=> activeNota() && imprimirNotaA4(activeNota().id));
-$('#btnImprimir80').addEventListener('click', ()=> activeNota() && imprimirNota80mm(activeNota().id)); // HTML->Print
-$('#btnImprimir80RawBT').addEventListener('click', ()=> activeNota() && imprimirNota80mmRawBT(activeNota().id)); // ESC/POS directo
+$('#btnRawBT80').addEventListener('click', ()=> activeNota() && imprimirNota80mmRawBT(activeNota().id));
 $('#btnCSV').addEventListener('click', ()=> activeNota() && exportNotaCSV(activeNota().id));
 $('#btnCerrar').addEventListener('click', cerrarNota);
 $('#btnNuevoCliente').addEventListener('click', addCliente);
@@ -651,15 +645,13 @@ async function loadBandeja(){
       <td class="flex">
         <button class="btn btn-ghost" data-usea="${r.id}" data-cid="${r.cliente_id}">Usar en A</button>
         <button class="btn btn-ghost" data-useb="${r.id}" data-cid="${r.cliente_id}">Usar en B</button>
-        <button class="btn btn-ghost" data-a4="${r.id}">A4</button>
-        <button class="btn btn-ghost" data-80="${r.id}">80mm</button>
+        <button class="btn btn-ghost" data-rawbt="${r.id}">80mm (RawBT)</button>
         <button class="btn btn-ghost" data-wa="${r.id}">WA</button>
       </td>
     </tr>`).join('');
   bandejaBody.querySelectorAll('[data-usea]').forEach(b=> b.onclick = ()=> cargarEnSlot('A', b.dataset.usea, b.dataset.cid));
   bandejaBody.querySelectorAll('[data-useb]').forEach(b=> b.onclick = ()=> cargarEnSlot('B', b.dataset.useb, b.dataset.cid));
-  bandejaBody.querySelectorAll('[data-a4]').forEach(b=> b.onclick = ()=> imprimirNotaA4(b.dataset.a4));
-  bandejaBody.querySelectorAll('[data-80]').forEach(b=> b.onclick = ()=> imprimirNota80mm(b.dataset['80']));
+  bandejaBody.querySelectorAll('[data-rawbt]').forEach(b=> b.onclick = ()=> imprimirNota80mmRawBT(b.dataset.rawbt));
   bandejaBody.querySelectorAll('[data-wa]').forEach(b=> b.onclick = ()=> waNota(b.dataset.wa));
 }
 async function cargarEnSlot(slot, nota_id, cliente_id){
@@ -672,7 +664,7 @@ async function cargarEnSlot(slot, nota_id, cliente_id){
   setActiveSlot(slot);
 }
 
-/* ========================= WHATSAPP / A4 / CSV / 80mm ========================= */
+/* ========================= WHATSAPP / CSV ========================= */
 function plantillaWA(nota, det, clienteNombre){
   const items = (det||[]).map(d=>`• ${d.producto} ${to2(d.cantidad)}kg × $${to2(d.precio)} = $${to2(d.importe)}`).join('\n');
   return [
@@ -699,60 +691,6 @@ async function waNota(nota_id){
   }
   openWA(plantillaWA(nota, det||[], nombre), phone);
 }
-async function imprimirNotaA4(nota_id){
-  const { data: nota } = await supabase.from('notas_credito').select('*, clientes(nombre)').eq('id', nota_id).single();
-  const { data: det }  = await supabase.from('notas_detalle').select('*').eq('nota_id', nota_id).order('created_at');
-  const el = $('#printArea'); el.style.display='block'; el.classList.remove('ticket80');
-  el.innerHTML = `
-    <h3>Nota — ${nota.clientes?.nombre||''}</h3>
-    <div><b>Folio:</b> ${nota.folio} &nbsp; <b>Fecha:</b> ${nota.fecha} &nbsp; <b>Vence:</b> ${nota.vence||''}</div>
-    <div><b>Total:</b> $${to2(nota.total)} &nbsp; <b>Saldo:</b> $${to2(nota.saldo)}</div>
-    ${nota.observaciones ? `<div style="margin-top:6mm"><b>Notas del cliente:</b><br>${(nota.observaciones||'').replace(/\n/g,'<br>')}</div>` : ''}
-    <br/>
-    <table>
-      <thead><tr><th>Fecha/Hora</th><th>Producto</th><th>Kg</th><th>P.Unit</th><th>Importe</th></tr></thead>
-      <tbody>${(det||[]).map(d=>`<tr><td>${new Date(d.created_at).toLocaleString()}</td><td>${d.producto}</td><td>${to2(d.cantidad)}</td><td>$${to2(d.precio)}</td><td>$${to2(d.importe)}</td></tr>`).join('')}</tbody>
-    </table>`;
-  window.print(); setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
-}
-
-/* ====== Ticket 80mm (HTML -> print) ====== */
-async function imprimirNota80mm(nota_id){
-  await saveNotaObs();
-  const { data: nota } = await supabase.from('notas_credito').select('*, clientes(nombre)').eq('id', nota_id).single();
-  const { data: det }  = await supabase.from('notas_detalle').select('*').eq('nota_id', nota_id).order('created_at');
-
-  const el = $('#printArea'); el.style.display='block'; el.classList.add('ticket80');
-
-  const lines = (det||[]).map(d=>`
-      <tr><td colspan="2">${d.producto}</td></tr>
-      <tr class="mono">
-        <td>${to2(d.cantidad)}kg × $${to2(d.precio)}</td>
-        <td style="text-align:right">$${to2(d.importe)}</td>
-      </tr>`).join('');
-
-  el.innerHTML = `
-    <div class="tk-header">
-      <div class="store">${STORE_NAME}</div>
-      <div>Nota a Crédito</div>
-    </div>
-    <div class="tk-meta">
-      <div><b>Cliente:</b> ${nota.clientes?.nombre||''}</div>
-      <div><b>Folio:</b> ${nota.folio}</div>
-      <div><b>Fecha:</b> ${nota.fecha} &nbsp; <b>Vence:</b> ${nota.vence||''}</div>
-    </div>
-    <div class="tk-line"></div>
-    <table class="tk-items"><tbody>${lines}</tbody></table>
-    <div class="tk-line"></div>
-    <div class="totals">Total: $${to2(nota.total)}<span class="right"></span></div>
-    <div class="mono">Saldo: $${to2(nota.saldo)}</div>
-    ${nota.observaciones ? `<div class="obs-title">Notas del cliente:</div><div class="obs">${(nota.observaciones||'')}</div>` : ''}
-    <div class="tk-line"></div>
-    <div class="thanks">¡Gracias por su preferencia!</div>
-  `;
-  window.print();
-  setTimeout(()=>{ el.style.display='none'; el.classList.remove('ticket80'); el.innerHTML=''; }, 500);
-}
 
 /* ====== Ticket 80mm (ESC/POS directo con RawBT) ====== */
 async function imprimirNota80mmRawBT(nota_id){
@@ -769,9 +707,10 @@ async function imprimirNota80mmRawBT(nota_id){
   const BOLD_ON  = esc(0x1B,0x45,0x01);
   const BOLD_OFF = esc(0x1B,0x45,0x00);
   const LF       = esc(0x0A);
-  const CUT      = esc(0x1D,0x56,0x00); // Si no corta: usa esc(0x1D,0x56,0x01) ó esc(0x1D,0x56,0x42,0x00)
+  const CUT      = esc(0x1D,0x56,0x00); // Ajusta si tu modelo necesita otro tipo de corte
 
   const line = (s="") => cat(text(s), LF);
+  const dinero = v => Number(v||0).toFixed(2);
 
   let parts = [
     INIT,
@@ -787,13 +726,13 @@ async function imprimirNota80mmRawBT(nota_id){
   (det||[]).forEach(d=>{
     const imp = Number(d.cantidad)*Number(d.precio);
     parts.push(line(String(d.producto)));
-    parts.push(line(`${to2(d.cantidad)}kg x $${to2(d.precio)}   $${to2(imp)}`));
+    parts.push(line(`${dinero(d.cantidad)}kg x $${dinero(d.precio)}   $${dinero(imp)}`));
   });
 
   parts.push(
     line('--------------------------------'),
-    BOLD_ON, line(`Total: $${to2(nota.total)}`), BOLD_OFF,
-    line(`Saldo: $${to2(nota.saldo)}`)
+    BOLD_ON, line(`Total: $${dinero(nota.total)}`), BOLD_OFF,
+    line(`Saldo: $${dinero(nota.saldo)}`)
   );
 
   if (nota.observaciones){
