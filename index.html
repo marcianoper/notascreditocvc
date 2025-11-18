@@ -36,7 +36,7 @@
     .btn-sm{padding:4px 8px;font-size:12px}
     .cell-editing input{width:100%; padding:6px; font-size:14px}
 
-    /* ====== IMPRESIÓN GENERAL (nota individual y ticket80 usando #printArea) ====== */
+    /* ====== IMPRESIÓN GENERAL (nota individual / ticket80 usando #printArea) ====== */
     @media print{
       body *{visibility:hidden}
       #printArea, #printArea *{visibility:visible}
@@ -53,10 +53,7 @@
       }
       #printArea:not(.ticket80) h3{
         margin:0 0 4mm 0;
-      }
-      #printArea:not(.ticket80) h4{
-        margin:4mm 0 2mm 0;
-        font-size:13px;
+        font-size:14px;
       }
       #printArea:not(.ticket80) table{
         width:100%;
@@ -88,7 +85,7 @@
 </head>
 <body>
 <header>
-  <h1>VDC360° · Notas a Crédito </h1>
+  <h1>VDC360° · Notas a Crédito (Slots A/B + Reporte Diario)</h1>
 </header>
 
 <main>
@@ -1085,11 +1082,11 @@ async function imprimirDiaA4(){
     <style>
       @page {
         size: letter landscape;
-        margin: 10mm;
+        margin: 8mm;
       }
       body {
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-        font-size: 10.5px;
+        font-size: 11px;
         margin: 0;
       }
       h3 {
@@ -1106,7 +1103,7 @@ async function imprimirDiaA4(){
       }
       #columns {
         column-count: 2;
-        column-gap: 6mm;
+        column-gap: 5mm;
       }
       .client-group {
         break-inside: avoid;
@@ -1120,7 +1117,7 @@ async function imprimirDiaA4(){
       th, td {
         border: 1px solid #ccc;
         padding: 2px 3px;
-        font-size: 9px;
+        font-size: 9.5px;
         text-align: left;
       }
       th {
@@ -1180,6 +1177,7 @@ async function imprimirDiaA4(){
   win.document.open();
   win.document.write(html);
   win.document.close();
+  win.focus();
 
   setTimeout(() => {
     win.print();
@@ -1238,6 +1236,5 @@ async function cerrarNota(){
 </script>
 </body>
 </html>
-
 
 
