@@ -36,21 +36,19 @@
     .btn-sm{padding:4px 8px;font-size:12px}
     .cell-editing input{width:100%; padding:6px; font-size:14px}
 
-    /* ====== IMPRESIÓN GENERAL ====== */
+    /* ====== IMPRESIÓN GENERAL (notas y ticket80 usando #printArea) ====== */
     @media print{
       body *{visibility:hidden}
       #printArea, #printArea *{visibility:visible}
       #printArea{position:fixed; left:0; top:0}
 
-      /* Forzar A4 horizontal para reportes generales y notas A4 */
       @page{
         size: A4 landscape;
         margin: 10mm;
       }
 
-      /* A4 landscape por defecto para printArea (no ticket) */
       #printArea:not(.ticket80){
-        width:297mm;          /* ancho de A4 en horizontal */
+        width:297mm;
         padding:8mm 10mm;
       }
       #printArea:not(.ticket80) h3{
@@ -218,7 +216,12 @@
           </tr>
         </thead>
         <tbody id="vistaBody"></tbody>
-        <tfoot><tr><td colspan="6" style="text-align:right">Total</td><td id="vistaTotal">$0.00</td></tr></tfoot>
+        <tfoot>
+          <tr>
+            <td colspan="6" style="text-align:right">Total</td>
+            <td id="vistaTotal">$0.00</td>
+          </tr>
+        </tfoot>
       </table>
     </section>
   </div>
@@ -378,7 +381,6 @@ $('#btnAgregar').addEventListener('click', addPartida);
 $('#btnWA').addEventListener('click', ()=> activeNota() && waNota(activeNota().id));
 $('#btnImprimir').addEventListener('click', ()=> activeNota() && imprimirNotaA4(activeNota().id));
 $('#btnImprimir80').addEventListener('click', ()=> activeNota() && imprimirNota80mm(activeNota().id));
-// Botón RawBT eliminado
 $('#btnCSV').addEventListener('click', ()=> activeNota() && exportNotaCSV(activeNota().id));
 $('#btnCerrar').addEventListener('click', cerrarNota);
 $('#btnNuevoCliente').addEventListener('click', addCliente);
@@ -1033,16 +1035,21 @@ async function imprimirNota80mm(nota_id){
 }
 
 /* ========================= REPORTE DIARIO GENERAL ========================= */
+/*  A + C + D: limpio, compacto, dos columnas  */
 async function imprimirDiaA4(){
   const f = diaFecha.value || todayISO();
+
   const { data: notas } = await supabase
     .from('notas_credito')
-    .select('id, folio, fecha, clientes(nombre), cliente_id')
+    .select('id, folio, fecha, clientes(nombre)')
     .eq('fecha', f)
     .order('clientes(nombre), created_at');
 
-  const ids=(notas||[]).map(n=>n.id);
-  if(!ids.length) return alert('No hay notas ese día');
+  const ids = (notas || []).map(n => n.id);
+  if (!ids.length) {
+    alert('No hay notas ese día');
+    return;
+  }
 
   const { data: det } = await supabase
     .from('notas_detalle')
@@ -1050,55 +1057,141 @@ async function imprimirDiaA4(){
     .in('nota_id', ids)
     .order('created_at');
 
-  const byClient={};
-  (notas||[]).forEach(n=>{
-    const cliente = n.clientes?.nombre || '—';
-    byClient[cliente] = byClient[cliente] || { notas: [], items: [] };
-    byClient[cliente].notas.push(n);
-  });
-  (det||[]).forEach(d=>{
-    const n=(notas||[]).find(x=>x.id===d.nota_id);
-    const cliente=n?.clientes?.nombre || '—';
-    byClient[cliente].items.push({ folio:n?.folio, ...d });
+  const byClient = {};
+  (notas || []).forEach(n => {
+    const c = n.clientes?.nombre || '—';
+    if (!byClient[c]) byClient[c] = { items: [], totalImporte: 0 };
   });
 
-  const el=$('#printArea'); 
-  el.style.display='block'; 
-  el.classList.remove('ticket80');
-  let html=`<h3>Reporte diario — ${f}</h3>`;
-  Object.entries(byClient).forEach(([cliente, pack])=>{
-    const totalCliente=(pack.items||[]).reduce((a,b)=>a+Number(b.importe||0),0);
-    html += `<div class="group">
-      <h4>${cliente} — Total: $${to2(totalCliente)}</h4>
-      <table>
-        <thead>
-          <tr>
-            <th>Folio</th>
-            <th>Hora</th>
-            <th>Producto</th>
-            <th>Kg</th>
-            <th>Pzas</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${(pack.items||[]).map(d=>`<tr>
-            <td>${d.folio||''}</td>
-            <td>${new Date(d.created_at).toLocaleTimeString()}</td>
-            <td>${d.producto}</td>
-            <td>${to2(d.cantidad)}</td>
-            <td>${d.piezas != null ? d.piezas : ''}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
-  });
-  el.innerHTML=html;
-  window.print(); 
-  setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
+  (det || []).forEach(d => {
+    const nota = (notas || []).find(x => x.id === d.nota_id);
+    const cliente = nota?.clientes?.nombre || '—';
+    if (!byClient[cliente]) byClient[cliente] = { items: [], totalImporte: 0 };
 
-  const totalDia=(det||[]).reduce((a,b)=>a+Number(b.importe||0),0);
-  diaResumen.textContent=`Clientes: ${Object.keys(byClient).length} · Total día: $${to2(totalDia)}`;
+    byClient[cliente].items.push({
+      folio: nota?.folio || '',
+      created_at: d.created_at,
+      producto: d.producto,
+      cantidad: d.cantidad,
+      piezas: d.piezas
+    });
+
+    byClient[cliente].totalImporte += Number(d.importe || 0);
+  });
+
+  const totalDia = (det || []).reduce((a, b) => a + Number(b.importe || 0), 0);
+  diaResumen.textContent = `Clientes: ${Object.keys(byClient).length} · Total día: $${to2(totalDia)}`;
+
+  let html = `
+  <!DOCTYPE html>
+  <html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Reporte diario</title>
+    <style>
+      @page {
+        size: A4 landscape;
+        margin: 8mm;
+      }
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 11px;
+        margin: 0;
+      }
+      h3 {
+        margin: 0 0 4mm 0;
+        font-size: 14px;
+      }
+      h4 {
+        margin: 2mm 0 1mm 0;
+        font-size: 11px;
+      }
+      .subinfo {
+        font-size: 10px;
+        margin-bottom: 3mm;
+      }
+      #columns {
+        column-count: 2;
+        column-gap: 6mm;
+      }
+      .client-group {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 3mm;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        border: 1px solid #ccc;
+        padding: 2px 3px;
+        font-size: 9.5px;
+        text-align: left;
+      }
+      th {
+        background: #f3f3f3;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Reporte diario — ${f}</h3>
+    <div class="subinfo">
+      Clientes: ${Object.keys(byClient).length} · Total día: $${to2(totalDia)}
+    </div>
+    <div id="columns">
+  `;
+
+  Object.entries(byClient).forEach(([cliente, pack]) => {
+    html += `
+      <div class="client-group">
+        <h4>${cliente} — Total: $${to2(pack.totalImporte)}</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Folio</th>
+              <th>Hora</th>
+              <th>Producto</th>
+              <th>Kg</th>
+              <th>Pzas</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    html += (pack.items || []).map(d => `
+      <tr>
+        <td>${d.folio}</td>
+        <td>${new Date(d.created_at).toLocaleTimeString()}</td>
+        <td>${d.producto}</td>
+        <td>${to2(d.cantidad)}</td>
+        <td>${d.piezas != null ? d.piezas : ''}</td>
+      </tr>
+    `).join('');
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+  });
+
+  html += `
+    </div>
+  </body>
+  </html>
+  `;
+
+  const win = window.open('', '_blank', 'width=1200,height=800');
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+
+  setTimeout(() => {
+    win.print();
+  }, 400);
 }
+
 async function exportDiaCSV(){
   const f = diaFecha.value || todayISO();
   const { data: notas } = await supabase
@@ -1151,4 +1244,5 @@ async function cerrarNota(){
 </script>
 </body>
 </html>
+
 
