@@ -36,7 +36,7 @@
     .btn-sm{padding:4px 8px;font-size:12px}
     .cell-editing input{width:100%; padding:6px; font-size:14px}
 
-    /* ====== IMPRESIÓN GENERAL (notas y ticket80 usando #printArea) ====== */
+    /* ====== IMPRESIÓN GENERAL (nota individual y ticket80 usando #printArea) ====== */
     @media print{
       body *{visibility:hidden}
       #printArea, #printArea *{visibility:visible}
@@ -216,12 +216,7 @@
           </tr>
         </thead>
         <tbody id="vistaBody"></tbody>
-        <tfoot>
-          <tr>
-            <td colspan="6" style="text-align:right">Total</td>
-            <td id="vistaTotal">$0.00</td>
-          </tr>
-        </tfoot>
+        <tfoot><tr><td colspan="6" style="text-align:right">Total</td><td id="vistaTotal">$0.00</td></tr></tfoot>
       </table>
     </section>
   </div>
@@ -1034,8 +1029,7 @@ async function imprimirNota80mm(nota_id){
   setTimeout(()=>{ win.print(); }, 300);
 }
 
-/* ========================= REPORTE DIARIO GENERAL ========================= */
-/*  A + C + D: limpio, compacto, dos columnas  */
+/* ========================= REPORTE DIARIO GENERAL (CARTA horizontal, 2 columnas, sin PU ni Importe) ========================= */
 async function imprimirDiaA4(){
   const f = diaFecha.value || todayISO();
 
@@ -1090,12 +1084,12 @@ async function imprimirDiaA4(){
     <title>Reporte diario</title>
     <style>
       @page {
-        size: A4 landscape;
-        margin: 8mm;
+        size: letter landscape;
+        margin: 10mm;
       }
       body {
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-        font-size: 11px;
+        font-size: 10.5px;
         margin: 0;
       }
       h3 {
@@ -1126,7 +1120,7 @@ async function imprimirDiaA4(){
       th, td {
         border: 1px solid #ccc;
         padding: 2px 3px;
-        font-size: 9.5px;
+        font-size: 9px;
         text-align: left;
       }
       th {
@@ -1244,5 +1238,6 @@ async function cerrarNota(){
 </script>
 </body>
 </html>
+
 
 
