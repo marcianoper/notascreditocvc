@@ -265,7 +265,6 @@
       <button class="btn btn-ghost" id="btnWA">WhatsApp Cuenta</button>
       <button class="btn btn-ghost" id="btnImprimir">Imprimir A4</button>
       <button class="btn btn-ghost" id="btnImprimir80">Imprimir 80mm</button>
-      <!-- Botón RawBT eliminado -->
       <button class="btn btn-ghost" id="btnCSV">Exportar CSV</button>
       <button class="btn btn-ghost danger right" id="btnCerrar">Cerrar Nota</button>
     </div>
@@ -291,6 +290,31 @@ function todayISO(){ const d=new Date(); const z=d.getTimezoneOffset()*60000; re
 function addDays(dateISO, days){ const d=new Date(dateISO); d.setDate(d.getDate()+Number(days||0)); const z=d.getTimezoneOffset()*60000; return new Date(d - z).toISOString().slice(0,10); }
 function genFolio(){ const d=new Date(); const pad=n=>String(n).padStart(2,'0'); return `CVC-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`; }
 function csvEscape(s){ return '"'+String(s).replaceAll('"','""')+'"'; }
+
+/* === NUEVO: construir observaciones automáticas por producto === */
+function buildAutoObsFromDetalle(det){
+  if(!det || !det.length) return '';
+  const grupos = {};
+  det.forEach(d=>{
+    const prod = d.producto || 'Sin producto';
+    if(!grupos[prod]){
+      grupos[prod] = { kg:0, pzas:0, tienePzas:false };
+    }
+    grupos[prod].kg += Number(d.cantidad || 0);
+    if(d.piezas != null){
+      grupos[prod].pzas += Number(d.piezas || 0);
+      grupos[prod].tienePzas = true;
+    }
+  });
+
+  const lineas = Object.entries(grupos).map(([prod, g])=>{
+    const kgTxt = to2(g.kg);
+    const pzasTxt = g.tienePzas ? ` / ${g.pzas} pzas` : '';
+    return `TOTAL ${prod} = ${kgTxt}${pzasTxt}`;
+  });
+
+  return lineas.join('\n');
+}
 
 /* ========================= STATE ========================= */
 let CLIENTES=[], PRODUCTOS=[], PRECIOS={};
@@ -486,7 +510,7 @@ async function saveClientPhone(){
   }catch(e){ console.error(e); }
 }
 
-/* ========================= GUARDAR OBSERVACIONES ========================= */
+/* ========================= GUARDAR OBSERVACIONES MANUALES ========================= */
 async function saveNotaObs(){
   const n = activeNota(); 
   if(!n) return;
@@ -629,7 +653,16 @@ async function renderVista(){
   vFolio.textContent = nota.folio; 
   vEstado.textContent = nota.estado||'abierta'; 
   vSaldo.textContent = to2(nota.saldo||0);
-  notaObs.value = nota.observaciones || '';
+
+  /* === Observaciones automáticas por producto === */
+  const autoObs = buildAutoObsFromDetalle(det || []);
+  notaObs.value = autoObs;
+  try{
+    await supabase
+      .from('notas_credito')
+      .update({ observaciones: autoObs || null })
+      .eq('id', nota.id);
+  }catch(e){ console.error(e); }
 
   vistaBody.innerHTML = (det||[]).map(d=>`
     <tr data-id="${d.id}">
@@ -959,6 +992,10 @@ async function imprimirNota80mm(nota_id){
         font-size:11px;
         margin-bottom:4px;
       }
+      #ticket .obs-block{
+        margin-top:2px;
+        white-space:pre-wrap;
+      }
       #ticket table{
         width:100%;
         border-collapse:collapse;
@@ -997,7 +1034,8 @@ async function imprimirNota80mm(nota_id){
         Cliente: ${cliente}<br/>
         Folio: ${nota.folio}<br/>
         Fecha: ${nota.fecha}<br/>
-        Obs: ${obs}
+        <div class="obs-block">Obs:
+${obs}</div>
       </div>
       <table>
         <thead>
@@ -1026,7 +1064,7 @@ async function imprimirNota80mm(nota_id){
   setTimeout(()=>{ win.print(); }, 300);
 }
 
-/* ========================= REPORTE DIARIO GENERAL (CARTA horizontal, 2 columnas, sin PU ni Importe) ========================= */
+/* ========================= REPORTE DIARIO GENERAL ========================= */
 async function imprimirDiaA4(){
   const f = diaFecha.value || todayISO();
 
@@ -1236,5 +1274,6 @@ async function cerrarNota(){
 </script>
 </body>
 </html>
+
 
 
