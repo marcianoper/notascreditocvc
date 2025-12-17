@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VDC360° — Notas a Crédito </title>
+  <title>VDC360° — Notas a Crédito (LOCAL)</title>
   <style>
     :root{--ink:#111;--brand:#0a7a3b;--muted:#6b7280;--bg:#f6f7f8;--card:#fff}
     *{box-sizing:border-box}
@@ -36,7 +36,7 @@
     .btn-sm{padding:4px 8px;font-size:12px}
     .cell-editing input{width:100%; padding:6px; font-size:14px}
 
-    /* ====== IMPRESIÓN GENERAL (nota individual / ticket80 usando #printArea) ====== */
+    /* ====== IMPRESIÓN GENERAL (nota individual / ticket80 usando ventana nueva) ====== */
     @media print{
       body *{visibility:hidden}
       #printArea, #printArea *{visibility:visible}
@@ -65,27 +65,12 @@
         padding:3px 4px;
         font-size:11px;
       }
-
-      /* Ticket 80mm */
-      #printArea.ticket80{width:80mm; padding:2mm}
-      #printArea.ticket80 .tk-header{ text-align:center; font-size:12px; line-height:1.2; margin-bottom:6px }
-      #printArea.ticket80 .tk-header .store{ font-weight:700; font-size:14px }
-      #printArea.ticket80 .tk-meta{ font-size:11px; margin-bottom:6px }
-      #printArea.ticket80 .tk-line{ border-top:1px dashed #000; margin:6px 0 }
-      #printArea.ticket80 .tk-items{ width:100%; font-size:11px; border-collapse:collapse }
-      #printArea.ticket80 .tk-items th, #printArea.ticket80 .tk-items td{ padding:2px 0; }
-      #printArea.ticket80 .right{ float:right }
-      #printArea.ticket80 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Courier New", monospace }
-      #printArea.ticket80 .totals{ font-size:12px; font-weight:700; margin-top:4px }
-      #printArea.ticket80 .obs-title{ font-weight:700; font-size:11px; margin-top:6px }
-      #printArea.ticket80 .obs{ white-space:pre-wrap; font-size:11px; }
-      #printArea.ticket80 .thanks{ text-align:center; margin-top:8px; font-size:11px }
     }
   </style>
 </head>
 <body>
 <header>
-  <h1>VDC360° · Notas a Crédito (Slots A/B + Reporte Diario) </h1>
+  <h1>VDC360° · Notas a Crédito (LOCAL · sin Supabase)</h1>
 </header>
 
 <main>
@@ -113,12 +98,12 @@
         <label>Cliente</label>
         <div class="flex" style="gap:6px; align-items:stretch">
           <select id="cliSelect"></select>
-          <button class="btn btn-ghost" id="btnNuevoCliente">+ Cliente</button>
+          <button class="btn btn-ghost" id="btnNuevoCliente" type="button">+ Cliente</button>
         </div>
       </div>
       <div>
         <label>Teléfono (WhatsApp)</label>
-        <input id="cliTelefono" placeholder="10 dígitos" />
+        <input id="cliTelefono" placeholder="10 dígitos / +52..." />
       </div>
     </div>
     <div class="row-3">
@@ -148,7 +133,7 @@
       <div>
         <label>&nbsp;</label>
         <div class="flex">
-          <button class="btn btn-primary" id="btnContinuar">Crear / Continuar Nota en Slot Activo</button>
+          <button class="btn btn-primary" id="btnContinuar" type="button">Crear / Continuar Nota en Slot Activo</button>
           <span class="pill right" id="notaInfo">Sin nota en slot</span>
         </div>
       </div>
@@ -185,11 +170,11 @@
         <input id="pPrecio" type="number" min="0" step="0.01" value="0" />
       </div>
       <div class="flex" style="margin-top:10px">
-        <button class="btn btn-primary" id="btnAgregar">Agregar a nota (Enter)</button>
+        <button class="btn btn-primary" id="btnAgregar" type="button">Agregar a nota (Enter)</button>
         <span class="pill right" id="subtotalBox">Subtotal: $0.00</span>
       </div>
-      <label>Observaciones</label>
-      <textarea id="notaObs" rows="2" placeholder="Instrucciones, cortes, etc."></textarea>
+      <label>Observaciones (auto por producto)</label>
+      <textarea id="notaObs" rows="3" placeholder="Se autogenera con totales por producto"></textarea>
     </section>
 
     <!-- VISTA EN VIVO -->
@@ -229,7 +214,7 @@
       <div>
         <label>&nbsp;</label>
         <div class="flex">
-          <button class="btn btn-ghost" id="btnBandeja">Actualizar</button>
+          <button class="btn btn-ghost" id="btnBandeja" type="button">Actualizar</button>
           <span class="muted">Carga una nota al Slot A o B para alternar rápido.</span>
         </div>
       </div>
@@ -251,8 +236,8 @@
       <div>
         <label>&nbsp;</label>
         <div class="flex">
-          <button class="btn btn-ghost" id="btnDiaA4">Imprimir A4 (todos)</button>
-          <button class="btn btn-ghost" id="btnDiaCSV">CSV (todos)</button>
+          <button class="btn btn-ghost" id="btnDiaA4" type="button">Imprimir A4 (todos)</button>
+          <button class="btn btn-ghost" id="btnDiaCSV" type="button">CSV (todos)</button>
           <span class="pill right" id="diaResumen">—</span>
         </div>
       </div>
@@ -262,11 +247,18 @@
   <!-- ACCIONES NOTA -->
   <section class="card">
     <div class="flex">
-      <button class="btn btn-ghost" id="btnWA">WhatsApp Cuenta</button>
-      <button class="btn btn-ghost" id="btnImprimir">Imprimir A4</button>
-      <button class="btn btn-ghost" id="btnImprimir80">Imprimir 80mm</button>
-      <button class="btn btn-ghost" id="btnCSV">Exportar CSV</button>
-      <button class="btn btn-ghost danger right" id="btnCerrar">Cerrar Nota</button>
+      <button class="btn btn-ghost" id="btnWA" type="button">WhatsApp Cuenta</button>
+      <button class="btn btn-ghost" id="btnImprimir" type="button">Imprimir A4</button>
+      <button class="btn btn-ghost" id="btnImprimir80" type="button">Imprimir 80mm</button>
+      <button class="btn btn-ghost" id="btnCSV" type="button">Exportar CSV</button>
+      <button class="btn btn-ghost danger right" id="btnCerrar" type="button">Cerrar Nota</button>
+    </div>
+    <div class="flex" style="margin-top:10px">
+      <button class="btn btn-muted" id="btnExportDB" type="button">Respaldar (Exportar JSON)</button>
+      <button class="btn btn-muted" id="btnImportDB" type="button">Restaurar (Importar JSON)</button>
+      <button class="btn btn-ghost danger" id="btnResetDB" type="button">Borrar TODO (local)</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none" />
+      <span class="muted">* Todo se guarda local en este navegador.</span>
     </div>
   </section>
 </main>
@@ -274,13 +266,10 @@
 <div id="printArea" style="display:none"></div>
 <datalist id="catProductos"></datalist>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ========================= CONFIG ========================= */
-const SUPABASE_URL = "https://bjebybdqcqscouxlinfd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqZWJ5YmRxY3FzY291eGxpbmZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMjQ3MTksImV4cCI6MjA3MTkwMDcxOX0.mQgWtiYEyJTiF04pdcLv63SqPNrU1Iehws0vKqr82O0";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const STORE_NAME = "Carnes y Vísceras del Centro";
+const DBKEY = "VDC360_LOCAL_DB_v1";
 
 /* ========================= UTILS ========================= */
 const $ = s=>document.querySelector(s);
@@ -290,37 +279,163 @@ function todayISO(){ const d=new Date(); const z=d.getTimezoneOffset()*60000; re
 function addDays(dateISO, days){ const d=new Date(dateISO); d.setDate(d.getDate()+Number(days||0)); const z=d.getTimezoneOffset()*60000; return new Date(d - z).toISOString().slice(0,10); }
 function genFolio(){ const d=new Date(); const pad=n=>String(n).padStart(2,'0'); return `CVC-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`; }
 function csvEscape(s){ return '"'+String(s).replaceAll('"','""')+'"'; }
+function uid(){ return (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now())+"-"+Math.random().toString(16).slice(2)); }
 
-/* === NUEVO: construir observaciones automáticas por producto === */
+/* === Observaciones automáticas por producto === */
 function buildAutoObsFromDetalle(det){
   if(!det || !det.length) return '';
   const grupos = {};
   det.forEach(d=>{
     const prod = d.producto || 'Sin producto';
-    if(!grupos[prod]){
-      grupos[prod] = { kg:0, pzas:0, tienePzas:false };
-    }
+    if(!grupos[prod]) grupos[prod] = { kg:0, pzas:0, tienePzas:false };
     grupos[prod].kg += Number(d.cantidad || 0);
     if(d.piezas != null){
       grupos[prod].pzas += Number(d.piezas || 0);
       grupos[prod].tienePzas = true;
     }
   });
-
-  const lineas = Object.entries(grupos).map(([prod, g])=>{
+  return Object.entries(grupos).map(([prod, g])=>{
     const kgTxt = to2(g.kg);
     const pzasTxt = g.tienePzas ? ` / ${g.pzas} pzas` : '';
     return `TOTAL ${prod} = ${kgTxt}${pzasTxt}`;
-  });
-
-  return lineas.join('\n');
+  }).join('\n');
 }
+
+/* ========================= DB LOCAL ========================= */
+function defaultSeed(){
+  // Productos (de tu lista)
+  const productos = [
+    "Caja Azul Xkg","Cabeza De Rastro","Tripa","Medula","Caja Excel Completa","Higado",
+    "Caja Menudo Visceras Del Centro","Barra de Hielo","Tripa Gorda","Pata Morena",
+    "Caja Azul Completa","Cabeza Sin Lengua","Pata Blanca","Lengua","PT","Cabeza Congelada",
+    "Tripa de Rastro","Caja Menudo National","Menudo Canadian XKG","Corazon","Pellejo",
+    "Caja Libro Visceras","Caja de Tripa Gorda","Caja Menudo Washington","Pata Sucia","Teleco",
+    "Hueso","Menudo Sucio","Caja Excel XKg","Cabeza","Sebo","Caja Menudo Canadian","Bofe",
+    "Cuajo","Bofe Completo","Creadillas","Libro","Panza de Res","Caja de Tripa Delgada"
+  ].map(nombre=>({ id: uid(), nombre, precio_kg: 0, activo:true }));
+
+  // Clientes (de tu lista, nombre + teléfono si existe)
+  const clientes = [
+    ["José Juan","+523313505078"],
+    ["Alejandro Gonzales",null],
+    ["Elias",null],
+    ["Pepe Velazquez","+524623239323"],
+    ["Marcelino","+524438572648"],
+    ["Chato","+524623095231"],
+    ["Nacho","+524621080101"],
+    ["Ortega","+524561005706"],
+    ["Josue","+524621076210"],
+    ["Meche",null],
+    ["Salvador Ayala","+524431392412"],
+    ["Yerno Cuco","+524622692871"],
+    ["Leandro Ayala","+524291224253"],
+    ["Daniel",null],
+    ["Javier Navarro","+524611556351"],
+    ["Gabriel Arenas","+524771341678"],
+    ["Chaparrita",null],
+    ["Elias Vargas",null],
+    ["Leonardo Borja",null],
+    ["Penjamo",null],
+    ["Neto",null],
+    ["Paisaa","+5246221411029"],
+    ["Ing Rayo",null],
+    ["María Murillo","+524431861403"],
+    ["Don Jauregui","+524438572648"],
+    ["Manuel Acuña","+524623290813"],
+    ["Tacos Gory",null],
+    ["Alberto Ayala","+524431269273"],
+    ["Pedro Valadez","+524525251539"],
+    ["Carrillo","+524641599790"],
+    ["Alejandro Perez","+524621555525"],
+    ["Poncho Ayala","+524341045316"],
+    ["Juan Pedro Velazquez","+524623239323"],
+    ["Belén",null],
+    ["Rafa","+524622108109"],
+    ["Clara","+524624840803"],
+    ["Saul linares","+524291055228"],
+    ["Pieles y Grasas","8112559296"],
+    ["Sra. de Felipe",null],
+    ["Nota Crédito",null],
+    ["Ojo Zarco",null],
+    ["Adriana","+524622527782"],
+    ["Villa Rosita","+524621570742"],
+    ["Meche",null],
+    ["Flama","+524621467611"],
+    ["Paisa Chema","+524623067105"],
+    ["Hermano  Rafa",null],
+    ["Guadalupe Granados","+524622729790"],
+    ["Linares",null],
+    ["León","+524621766388"],
+    ["PRUEBA",null],
+    ["Jesús Z",null],
+    ["Gustavo","+527861219393"],
+    ["Cuco",null],
+    ["Elíseo Sanchez","+524691044508"],
+    ["Jose Villegas","+523521390324"],
+    ["Ruben","+524111063731"],
+    ["Mario Lolis","+524621035675"],
+    ["Alejandro Rivera","+524111615955"],
+    ["Rastro",null],
+    ["Roberto",null],
+    ["Otomi","+524611691774"],
+    ["Doña mari","+524621298807"],
+    ["Antonio Sosa","+524438751185"],
+    ["Rodolfo","+524621991103"],
+    ["Mely","+524431724777"],
+    ["Manuel Gascón","+524434108137"],
+    ["Tacos los Güeros","+524625991914"],
+    ["Trino","+524623098165"],
+    ["Acuario","+524622136821"],
+    ["Toro Real","+524361501083"],
+    ["Carmen Garcia","+524622087228"],
+    ["Jenny","+524777370596"],
+    ["Juan José vazquez","+524622218466"],
+    ["Miguel Velazquez","+524623239323"],
+    ["Andres Silao","+524721799360"],
+    ["Angelica Castro","+524623543989"],
+    ["Valeria","+524433656176"],
+    ["Vicenta","+524691551323"],
+    ["David","+524626047420"],
+    ["Monje","+524621490933"],
+    ["Pecas",null],
+    ["Doña Lorena",null],
+    ["Arturo Rivera","+524111771904"],
+    ["Alfredo Mora","+524381236201"],
+    ["Carniceria","+524622201454"]
+  ].map(([nombre, telefono])=>({ id: uid(), nombre, telefono: telefono||null, activo:true }));
+
+  return {
+    clientes,
+    productos,
+    notas_credito: [],    // {id, folio, fecha, vence, cliente_id, estado, total, saldo, observaciones, created_at}
+    notas_detalle: [],    // {id, nota_id, producto, cantidad, piezas, precio, importe, created_at}
+    _meta: { created_at: new Date().toISOString() }
+  };
+}
+function loadDB(){
+  const raw = localStorage.getItem(DBKEY);
+  if(!raw){
+    const seed = defaultSeed();
+    localStorage.setItem(DBKEY, JSON.stringify(seed));
+    return seed;
+  }
+  try{
+    const db = JSON.parse(raw);
+    if(!db || !db.clientes || !db.productos) throw new Error("bad db");
+    return db;
+  }catch{
+    const seed = defaultSeed();
+    localStorage.setItem(DBKEY, JSON.stringify(seed));
+    return seed;
+  }
+}
+function saveDB(db){ localStorage.setItem(DBKEY, JSON.stringify(db)); }
+let DB = loadDB();
 
 /* ========================= STATE ========================= */
 let CLIENTES=[], PRODUCTOS=[], PRECIOS={};
 let slotActive='A';
 let notaA=null, notaB=null;
-let chA=null, chB=null;
 const slotState = { A:{cliente_id:null, telefono:null}, B:{cliente_id:null, telefono:null} };
 
 /* ===== Protector de salida ===== */
@@ -356,7 +471,7 @@ const diaFecha=$('#diaFecha');
 const diaResumen=$('#diaResumen');
 const notaObs=$('#notaObs');
 
-/* ========================= INIT ========================= */
+/* ========================= INIT UI ========================= */
 notaFecha.value=todayISO();
 notaVence.value=addDays(notaFecha.value, notaDias.value);
 bandejaFecha.value=todayISO();
@@ -379,10 +494,11 @@ notaFecha.addEventListener('change', ()=> { notaVence.value=addDays(notaFecha.va
 ['keyup','change'].forEach(ev=> pKg.addEventListener(ev, markDirty));
 ['keyup','change'].forEach(ev=> pPzas.addEventListener(ev, markDirty));
 ['keyup','change'].forEach(ev=> pPrecio.addEventListener(ev, markDirty));
-['keyup','change'].forEach(ev=> notaObs.addEventListener(ev, markDirty));
-notaObs.addEventListener('blur', saveNotaObs);
 
-$$('.btnInc').forEach(b=> b.addEventListener('click', ()=>{ pKg.value=(Number(pKg.value||0)+Number(b.dataset.d||0)).toFixed(2); markDirty(); }));
+$$('.btnInc').forEach(b=> b.addEventListener('click', ()=>{
+  pKg.value=(Number(pKg.value||0)+Number(b.dataset.d||0)).toFixed(2);
+  markDirty();
+}));
 
 document.addEventListener('keydown', (e)=>{ 
   if(e.key==='Enter' && document.activeElement && ['pProducto','pKg','pPzas','pPrecio'].includes(document.activeElement.id)){ 
@@ -404,28 +520,49 @@ $('#btnBandeja').addEventListener('click', loadBandeja);
 $('#btnDiaA4').addEventListener('click', imprimirDiaA4);
 $('#btnDiaCSV').addEventListener('click', exportDiaCSV);
 
-// Cambios de cliente/teléfono ligados al slot activo
+// Backups
+$('#btnExportDB').addEventListener('click', exportDBJson);
+$('#btnImportDB').addEventListener('click', ()=> $('#importFile').click());
+$('#importFile').addEventListener('change', importDBJson);
+$('#btnResetDB').addEventListener('click', resetDB);
+
+// Cambios cliente/teléfono slot
 cliSelect.addEventListener('change', ()=>{
   slotState[slotActive].cliente_id = cliSelect.value || null;
   const c = getClient(slotState[slotActive].cliente_id);
   cliTelefono.value = c ? (c.telefono || '') : '';
   slotState[slotActive].telefono = cliTelefono.value || null;
 });
-cliTelefono.addEventListener('blur', async ()=>{ await saveClientPhone(); });
+cliTelefono.addEventListener('blur', ()=>{ saveClientPhone(); });
 
 slotABtn.onclick=()=> setActiveSlot('A');
 slotBBtn.onclick=()=> setActiveSlot('B');
 
-window.addEventListener('load', async ()=>{
-  await Promise.all([loadClientes(), loadProductos()]);
+window.addEventListener('load', ()=>{
+  loadCatalogosFromDB();
   notaFolio.value=genFolio();
-  await loadBandeja();
+  loadBandeja();
   if (CLIENTES[0]) {
     slotState.A.cliente_id = CLIENTES[0].id;
     slotState.A.telefono   = CLIENTES[0].telefono || null;
     applySlotUI('A');
   }
 });
+
+/* ========================= CATÁLOGOS ========================= */
+function loadCatalogosFromDB(){
+  DB = loadDB();
+  CLIENTES = (DB.clientes||[]).filter(c=>c.activo!==false).sort((a,b)=> (a.nombre||'').localeCompare(b.nombre||''));
+  PRODUCTOS = (DB.productos||[]).filter(p=>p.activo!==false).sort((a,b)=> (a.nombre||'').localeCompare(b.nombre||''));
+  PRECIOS = Object.fromEntries(PRODUCTOS.map(p=>[p.nombre, Number(p.precio_kg||0).toFixed(2)]));
+
+  cliSelect.innerHTML = (CLIENTES||[]).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  $('#catProductos').innerHTML = PRODUCTOS.map(p=>`<option value="${p.nombre}"></option>`).join('');
+}
+function prefPrecio(){ 
+  const n=(pProducto.value||'').trim(); 
+  if(PRECIOS[n] != null) pPrecio.value=PRECIOS[n]; 
+}
 
 /* ========================= HELPERS ========================= */
 function getClient(id){ return (CLIENTES||[]).find(c=> String(c.id)===String(id)); }
@@ -440,8 +577,7 @@ function setActiveSlot(s){
   refreshNotaInfo();
 }
 function setSlotNota(s, nota){
-  if(s==='A'){ notaA=nota; subRealtime('A'); }
-  else      { notaB=nota; subRealtime('B'); }
+  if(s==='A') notaA=nota; else notaB=nota;
   slotState[s].cliente_id = nota.cliente_id || slotState[s].cliente_id;
   const c = getClient(slotState[s].cliente_id);
   slotState[s].telefono = c ? (c.telefono || null) : slotState[s].telefono;
@@ -462,163 +598,118 @@ function applySlotUI(s){
   cliTelefono.value = (n && c) ? (c.telefono || '') : (slotState[s].telefono || c?.telefono || '');
 }
 
-/* ========================= CATÁLOGOS ========================= */
-async function loadClientes(){
-  const { data, error } = await supabase
-    .from('clientes')
-    .select('id, nombre, telefono')
-    .order('nombre');
-  if(error){ console.error(error); alert('No se pudieron cargar CLIENTES'); return; }
-  CLIENTES = data || [];
-  cliSelect.innerHTML = (CLIENTES||[])
-    .map(c=>`<option value="${c.id}">${c.nombre}</option>`)
-    .join('');
-}
-async function loadProductos(){
-  let { data, error } = await supabase
-    .from('productos')
-    .select('id,nombre,precio_kg,activo')
-    .eq('activo', true)
-    .order('nombre');
-  if(error){
-    ({ data } = await supabase
-      .from('productos')
-      .select('id,nombre,precio_kg')
-      .order('nombre'));
-  }
-  PRODUCTOS = data || [];
-  PRECIOS = Object.fromEntries(PRODUCTOS.map(p=>[p.nombre, Number(p.precio_kg||0).toFixed(2)]));
-  $('#catProductos').innerHTML = PRODUCTOS
-    .map(p=>`<option value="${p.nombre}"></option>`)
-    .join('');
-}
-function prefPrecio(){ 
-  const n=(pProducto.value||'').trim(); 
-  if(PRECIOS[n]) pPrecio.value=PRECIOS[n]; 
-}
-
 /* ========================= GUARDAR TELÉFONO ========================= */
-async function saveClientPhone(){
+function saveClientPhone(){
   const cid = slotState[slotActive].cliente_id || activeNota()?.cliente_id;
   if(!cid) return;
   const val = (cliTelefono.value||'').trim() || null;
-  try{
-    await supabase.from('clientes').update({ telefono: val }).eq('id', cid);
-    const c = getClient(cid); 
-    if(c) c.telefono = val;
-    slotState[slotActive].telefono = val;
-  }catch(e){ console.error(e); }
-}
-
-/* ========================= GUARDAR OBSERVACIONES MANUALES ========================= */
-async function saveNotaObs(){
-  const n = activeNota(); 
-  if(!n) return;
-  const val = (notaObs.value||'').trim() || null;
-  try{
-    await supabase.from('notas_credito').update({ observaciones: val }).eq('id', n.id);
-    clearDirty();
-  }catch(e){ console.error(e); }
+  const idx = DB.clientes.findIndex(x=>String(x.id)===String(cid));
+  if(idx>=0){
+    DB.clientes[idx].telefono = val;
+    saveDB(DB);
+    loadCatalogosFromDB();
+    const c = getClient(cid);
+    slotState[slotActive].telefono = c ? (c.telefono||null) : val;
+  }
 }
 
 /* ========================= CREAR/CONTINUAR NOTA ========================= */
-async function continuarNota(){
+function continuarNota(){
   const cliente_id = slotState[slotActive].cliente_id || cliSelect.value;
   if(!cliente_id) return alert('Selecciona cliente');
   const fecha = notaFecha.value || todayISO();
 
-  let { data: nota } = await supabase
-    .from('notas_credito').select('*')
-    .eq('cliente_id', cliente_id)
-    .eq('fecha', fecha)
-    .eq('estado','abierta')
-    .order('created_at', {ascending:false})
-    .limit(1)
-    .maybeSingle();
+  // buscar nota abierta existente mismo cliente y fecha
+  let nota = (DB.notas_credito||[])
+    .filter(n=>n.estado==='abierta' && n.cliente_id===cliente_id && n.fecha===fecha)
+    .sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||''))[0] || null;
 
   if(!nota){
     const folio = genFolio();
-    const payload = { 
-      id: crypto.randomUUID(), 
-      folio, 
-      fecha, 
-      vence:(notaVence.value||addDays(fecha, notaDias.value)), 
-      cliente_id, 
-      total:0, 
-      saldo:0, 
-      observaciones: (notaObs.value||null) 
+    nota = { 
+      id: uid(),
+      folio,
+      fecha,
+      vence:(notaVence.value||addDays(fecha, notaDias.value)),
+      cliente_id,
+      estado:'abierta',
+      total:0,
+      saldo:0,
+      observaciones: '',
+      created_at: new Date().toISOString()
     };
-    const { error } = await supabase.from('notas_credito').insert(payload);
-    if(error){ console.error(error); return alert('No se pudo crear la nota'); }
-    nota = payload;
+    DB.notas_credito.push(nota);
+    saveDB(DB);
   }
+
   setSlotNota(slotActive, nota);
   notaFolio.value = nota.folio;
-  notaObs.value = nota.observaciones || '';
+  renderVista();
 }
 
 /* ========================= NUEVO CLIENTE ========================= */
-async function addCliente(){
+function addCliente(){
   const nombre = prompt('Nombre del cliente:'); 
   if(!nombre || !nombre.trim()) return;
   const telefono = prompt('Teléfono (WhatsApp, opcional):') || null;
-  const row = { id: crypto.randomUUID(), nombre: nombre.trim(), telefono: telefono||null };
-  const { error } = await supabase.from('clientes').insert(row);
-  if(error){ console.error(error); return alert('No se pudo crear el cliente (RLS/SQL)'); }
-  await loadClientes();
-  const c = CLIENTES.find(x=>x.nombre===nombre.trim());
-  if(c){ 
-    slotState[slotActive].cliente_id=c.id; 
-    slotState[slotActive].telefono=c.telefono||null; 
-    applySlotUI(slotActive); 
-  }
+  const row = { id: uid(), nombre: nombre.trim(), telefono: telefono||null, activo:true, created_at: new Date().toISOString() };
+  DB.clientes.push(row);
+  saveDB(DB);
+  loadCatalogosFromDB();
+  slotState[slotActive].cliente_id = row.id;
+  slotState[slotActive].telefono = row.telefono || null;
+  applySlotUI(slotActive);
   alert('✅ Cliente creado');
 }
 
 /* ========================= INSERTAR PARTIDA ========================= */
-async function addPartida(){
+function addPartida(){
   const nota = activeNota(); 
   if(!nota) return alert('Primero crea/continúa una nota en el slot activo');
   const prod=(pProducto.value||'').trim(), 
         cant=Number(pKg.value||0), 
         piezas = (pPzas.value !== '' && pPzas.value != null) ? Number(pPzas.value||0) : null,
         precio=Number(pPrecio.value||0);
+
   if(!prod || cant<=0) return alert('Producto y kilos son obligatorios');
-  const { error } = await supabase.from('notas_detalle')
-    .insert({ 
-      id: crypto.randomUUID(), 
-      nota_id: nota.id, 
-      producto: prod, 
-      cantidad: cant, 
-      piezas: piezas, 
-      precio, 
-      importe: cant*precio 
-    });
-  if(error){ console.error(error); return alert('No se pudo agregar la partida'); }
+
+  DB.notas_detalle.push({ 
+    id: uid(), 
+    nota_id: nota.id, 
+    producto: prod, 
+    cantidad: cant, 
+    piezas: (piezas!=null && !isNaN(piezas) && piezas>0) ? Math.round(piezas) : null,
+    precio, 
+    importe: cant*precio,
+    created_at: new Date().toISOString()
+  });
+
+  saveDB(DB);
+
   pProducto.value=''; 
   pKg.value='1'; 
   pPzas.value='';
   prefPrecio();
   clearDirty();
-  await recalcNota(nota.id);
+  recalcNota(nota.id);
+  renderVista();
+  loadBandeja();
 }
-async function recalcNota(nota_id){
-  let total=0;
-  try{ 
-    const { data }=await supabase.rpc('sum_importe_nota',{p_nota_id:nota_id}); 
-    total=Number(data?.total||0); 
+
+function recalcNota(nota_id){
+  const det = (DB.notas_detalle||[]).filter(d=>d.nota_id===nota_id);
+  const total = det.reduce((a,b)=>a+Number(b.importe||0),0);
+  const idx = DB.notas_credito.findIndex(n=>n.id===nota_id);
+  if(idx>=0){
+    DB.notas_credito[idx].total = total;
+    DB.notas_credito[idx].saldo = total;
+    DB.notas_credito[idx].observaciones = buildAutoObsFromDetalle(det);
+    saveDB(DB);
   }
-  catch{ 
-    const { data }=await supabase.from('notas_detalle').select('importe').eq('nota_id', nota_id); 
-    total=(data||[]).reduce((a,b)=>a+Number(b.importe||0),0); 
-  }
-  await supabase.from('notas_credito').update({ total, saldo: total }).eq('id', nota_id);
-  await renderVista();
-  await loadBandeja();
 }
 
 /* ========================= VISTA (SLOT ACTIVO) ========================= */
-async function renderVista(){
+function renderVista(){
   const n = activeNota();
   if(!n){
     vFolio.textContent='—'; 
@@ -632,19 +723,19 @@ async function renderVista(){
     return;
   }
 
-  const { data: nota } = await supabase
-    .from('notas_credito')
-    .select('*')
-    .eq('id', n.id)
-    .single();
-
-  const { data: det }  = await supabase
-    .from('notas_detalle')
-    .select('*')
-    .eq('nota_id', n.id)
-    .order('created_at');
-
+  // refrescar nota desde DB (por si cambió)
+  const nota = DB.notas_credito.find(x=>x.id===n.id) || n;
   if(slotActive==='A') notaA=nota; else notaB=nota;
+
+  const det = (DB.notas_detalle||[])
+    .filter(d=>d.nota_id===nota.id)
+    .sort((a,b)=> (a.created_at||'').localeCompare(b.created_at||''));
+
+  // auto-obs
+  notaObs.value = buildAutoObsFromDetalle(det);
+  const idx = DB.notas_credito.findIndex(x=>x.id===nota.id);
+  if(idx>=0){ DB.notas_credito[idx].observaciones = notaObs.value; saveDB(DB); }
+
   slotState[slotActive].cliente_id = nota.cliente_id;
   const c = getClient(nota.cliente_id);
   slotState[slotActive].telefono = c ? (c.telefono || null) : slotState[slotActive].telefono;
@@ -654,17 +745,7 @@ async function renderVista(){
   vEstado.textContent = nota.estado||'abierta'; 
   vSaldo.textContent = to2(nota.saldo||0);
 
-  /* === Observaciones automáticas por producto === */
-  const autoObs = buildAutoObsFromDetalle(det || []);
-  notaObs.value = autoObs;
-  try{
-    await supabase
-      .from('notas_credito')
-      .update({ observaciones: autoObs || null })
-      .eq('id', nota.id);
-  }catch(e){ console.error(e); }
-
-  vistaBody.innerHTML = (det||[]).map(d=>`
+  vistaBody.innerHTML = det.map(d=>`
     <tr data-id="${d.id}">
       <td>${new Date(d.created_at).toLocaleString()}</td>
       <td>${d.producto}</td>
@@ -676,12 +757,12 @@ async function renderVista(){
     </tr>
   `).join('');
 
-  const tot=(det||[]).reduce((a,b)=>a+Number(b.importe||0),0);
+  const tot = det.reduce((a,b)=>a+Number(b.importe||0),0);
   vistaTotal.textContent=`$${to2(tot)}`; 
   subtotalBox.textContent=`Subtotal: $${to2(tot)}`;
 
   vistaBody.querySelectorAll('[data-del]').forEach(b=>{ b.onclick = ()=> deleteDetalle(b.dataset.del); });
-  vistaBody.querySelectorAll('.editable').forEach(td=>{ td.addEventListener('click', ()=> makeCellEditable(td, n.id)); });
+  vistaBody.querySelectorAll('.editable').forEach(td=>{ td.addEventListener('click', ()=> makeCellEditable(td, nota.id)); });
 
   refreshNotaInfo();
 }
@@ -707,55 +788,42 @@ function makeCellEditable(td, nota_id){
   input.select();
   markDirty();
 
-  const commit = async(save)=>{
+  const commit = (save)=>{
     const newV = Number(input.value||'');
-    let displayV;
-
-    if(field==='precio'){
-      const val = save ? newV : (oldV ?? 0);
-      displayV = `$${to2(val)}`;
-    } else if(field==='cantidad'){
-      const val = save ? newV : (oldV ?? 0);
-      displayV = to2(val);
-    } else if(field==='piezas'){
-      const val = save ? newV : (oldV ?? null);
-      displayV = (val == null || isNaN(val) || val === 0) ? '' : String(Math.round(val));
-    } else {
-      displayV = input.value;
-    }
-
     td.classList.remove('cell-editing');
-    td.innerHTML = displayV;
 
-    if(!save){ clearDirty(); return; }
-
-    if(field === 'piezas'){
-      const newVal = (isNaN(newV) || newV <= 0) ? null : Math.round(newV);
-      await supabase
-        .from('notas_detalle')
-        .update({ piezas: newVal })
-        .eq('id', detId);
+    const detIdx = DB.notas_detalle.findIndex(x=>x.id===detId);
+    if(detIdx<0){
+      td.innerHTML = raw;
       clearDirty();
-      await renderVista();
       return;
     }
 
-    const { data: cur } = await supabase
-      .from('notas_detalle')
-      .select('cantidad, precio')
-      .eq('id', detId)
-      .single();
+    if(!save){
+      td.innerHTML = raw;
+      clearDirty();
+      return;
+    }
 
-    const cantidad = field==='cantidad' ? newV : Number(cur?.cantidad||0);
-    const precio   = field==='precio'   ? newV : Number(cur?.precio||0);
-    const importe  = cantidad * precio;
+    if(field==='piezas'){
+      const newVal = (isNaN(newV) || newV <= 0) ? null : Math.round(newV);
+      DB.notas_detalle[detIdx].piezas = newVal;
+      // importe no depende de piezas
+    } else if(field==='cantidad'){
+      DB.notas_detalle[detIdx].cantidad = Number(newV||0);
+    } else if(field==='precio'){
+      DB.notas_detalle[detIdx].precio = Number(newV||0);
+    }
 
-    await supabase
-      .from('notas_detalle')
-      .update({ cantidad, precio, importe })
-      .eq('id', detId);
+    // recalcular importe si cambió cantidad/precio
+    const d = DB.notas_detalle[detIdx];
+    d.importe = Number(d.cantidad||0) * Number(d.precio||0);
+
+    saveDB(DB);
     clearDirty();
-    await recalcNota(nota_id);
+    recalcNota(nota_id);
+    renderVista();
+    loadBandeja();
   };
 
   input.addEventListener('keydown', e=>{ 
@@ -766,74 +834,54 @@ function makeCellEditable(td, nota_id){
 }
 
 /* ===== Borrar partida ===== */
-async function deleteDetalle(detId){
+function deleteDetalle(detId){
   if(!confirm('¿Borrar esta partida?')) return;
   const n = activeNota(); 
   if(!n) return;
-  await supabase.from('notas_detalle').delete().eq('id', detId);
-  await recalcNota(n.id);
-}
-
-/* ========================= REALTIME ========================= */
-function subRealtime(slot){
-  const nota = slot==='A'? notaA : notaB;
-  if(!nota) return;
-  if(slot==='A' && chA){ supabase.removeChannel(chA); chA=null; }
-  if(slot==='B' && chB){ supabase.removeChannel(chB); chB=null; }
-
-  const ch = supabase.channel(`rt-${slot}-${nota.id}`)
-    .on('postgres_changes', {event:'*',schema:'public',table:'notas_detalle',filter:`nota_id=eq.${nota.id}`}, ()=>{
-      if(slot===slotActive) renderVista();
-    })
-    .on('postgres_changes', {event:'update',schema:'public',table:'notas_credito',filter:`id=eq.${nota.id}`}, ()=>{
-      if(slot===slotActive) renderVista();
-    })
-    .subscribe();
-
-  if(slot==='A') chA=ch; else chB=ch;
+  DB.notas_detalle = (DB.notas_detalle||[]).filter(d=>d.id!==detId);
+  saveDB(DB);
+  recalcNota(n.id);
+  renderVista();
+  loadBandeja();
 }
 
 /* ========================= BANDEJA ========================= */
-async function loadBandeja(){
+function loadBandeja(){
   const f = bandejaFecha.value || todayISO();
-  const { data } = await supabase
-    .from('notas_credito')
-    .select('id,folio,saldo,estado,clientes(nombre),cliente_id')
-    .eq('fecha', f)
-    .eq('estado','abierta')
-    .order('created_at');
-  const rows=data||[];
-  bandejaBody.innerHTML = rows.map(r=>`
-    <tr>
-      <td>${r.folio}</td>
-      <td>${r.clientes?.nombre||''}</td>
-      <td>$${to2(r.saldo||0)}</td>
-      <td>${r.estado||'abierta'}</td>
-      <td class="flex">
-        <button class="btn btn-ghost" data-usea="${r.id}" data-cid="${r.cliente_id}">Usar en A</button>
-        <button class="btn btn-ghost" data-useb="${r.id}" data-cid="${r.cliente_id}">Usar en B</button>
-        <button class="btn btn-ghost" data-a4="${r.id}">A4</button>
-        <button class="btn btn-ghost" data-id80="${r.id}">80mm</button>
-        <button class="btn btn-ghost" data-wa="${r.id}">WA</button>
-      </td>
-    </tr>`).join('');
-  bandejaBody.querySelectorAll('[data-usea]').forEach(b=> b.onclick = ()=> cargarEnSlot('A', b.dataset.usea, b.dataset.cid));
-  bandejaBody.querySelectorAll('[data-useb]').forEach(b=> b.onclick = ()=> cargarEnSlot('B', b.dataset.useb, b.dataset.cid));
+  const rows = (DB.notas_credito||[])
+    .filter(n=>n.fecha===f && n.estado==='abierta')
+    .sort((a,b)=> (a.created_at||'').localeCompare(b.created_at||''));
+
+  bandejaBody.innerHTML = rows.map(r=>{
+    const cliente = getClientName(r.cliente_id);
+    return `
+      <tr>
+        <td>${r.folio}</td>
+        <td>${cliente}</td>
+        <td>$${to2(r.saldo||0)}</td>
+        <td>${r.estado||'abierta'}</td>
+        <td class="flex">
+          <button class="btn btn-ghost" data-usea="${r.id}">Usar en A</button>
+          <button class="btn btn-ghost" data-useb="${r.id}">Usar en B</button>
+          <button class="btn btn-ghost" data-a4="${r.id}">A4</button>
+          <button class="btn btn-ghost" data-id80="${r.id}">80mm</button>
+          <button class="btn btn-ghost" data-wa="${r.id}">WA</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  bandejaBody.querySelectorAll('[data-usea]').forEach(b=> b.onclick = ()=> cargarEnSlot('A', b.dataset.usea));
+  bandejaBody.querySelectorAll('[data-useb]').forEach(b=> b.onclick = ()=> cargarEnSlot('B', b.dataset.useb));
   bandejaBody.querySelectorAll('[data-a4]').forEach(b=> b.onclick = ()=> imprimirNotaA4(b.dataset.a4));
   bandejaBody.querySelectorAll('[data-id80]').forEach(b=> b.onclick = ()=> imprimirNota80mm(b.dataset.id80));
   bandejaBody.querySelectorAll('[data-wa]').forEach(b=> b.onclick = ()=> waNota(b.dataset.wa));
 }
-async function cargarEnSlot(slot, nota_id, cliente_id){
-  const { data: nota } = await supabase
-    .from('notas_credito')
-    .select('*')
-    .eq('id', nota_id)
-    .single();
+
+function cargarEnSlot(slot, nota_id){
+  const nota = (DB.notas_credito||[]).find(n=>n.id===nota_id);
   if(!nota) return;
   setSlotNota(slot, nota);
-  slotState[slot].cliente_id = cliente_id || nota.cliente_id;
-  const c = getClient(slotState[slot].cliente_id);
-  slotState[slot].telefono = c ? (c.telefono || null) : null;
   setActiveSlot(slot);
 }
 
@@ -854,71 +902,54 @@ function plantillaWA(nota, det, clienteNombre){
     nota.observaciones ? `*Notas:* ${nota.observaciones}` : '',
     '',
     `¡Gracias por tu preferencia! — ${STORE_NAME}`
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
-async function waNota(nota_id){
-  const { data: nota } = await supabase
-    .from('notas_credito')
-    .select('*')
-    .eq('id', nota_id)
-    .single();
 
-  const { data: det }  = await supabase
-    .from('notas_detalle')
-    .select('*')
-    .eq('nota_id', nota_id)
-    .order('created_at');
+function waNota(nota_id){
+  const nota = (DB.notas_credito||[]).find(n=>n.id===nota_id);
+  if(!nota) return;
 
+  const det = (DB.notas_detalle||[]).filter(d=>d.nota_id===nota_id).sort((a,b)=> (a.created_at||'').localeCompare(b.created_at||''));
   const nombre = getClientName(nota.cliente_id);
-  let phone = slotState[slotActive].telefono;
-  if(!phone || (activeNota()?.cliente_id!==nota.cliente_id)){
-    const c = getClient(nota.cliente_id); 
-    phone = c ? (c.telefono||'') : '';
-  }
 
-  const phoneRaw = (phone || '').trim();
+  const c = getClient(nota.cliente_id);
+  const phoneRaw = (c?.telefono || '').trim();
   if(!phoneRaw){
-    alert('El cliente no tiene teléfono guardado. Captura el número en el campo "Teléfono (WhatsApp)" y vuelve a intentar.');
+    alert('El cliente no tiene teléfono guardado. Captura el número y vuelve a intentar.');
     return;
   }
-
   const digits = phoneRaw.replace(/[^\d]/g,'');
   if(!digits){
     alert('El teléfono del cliente no es válido.');
     return;
   }
 
-  const msg = plantillaWA(nota, det||[], nombre);
+  const msg = plantillaWA(nota, det, nombre);
   const u=`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
   const u2=`https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(msg)}`;
   const w=window.open(u,"_blank"); 
   setTimeout(()=>{ if(!w||w.closed) window.open(u2,"_blank"); }, 600);
 }
-async function imprimirNotaA4(nota_id){
-  const { data: nota } = await supabase
-    .from('notas_credito')
-    .select('*, clientes(nombre)')
-    .eq('id', nota_id)
-    .single();
 
-  const { data: det }  = await supabase
-    .from('notas_detalle')
-    .select('*')
-    .eq('nota_id', nota_id)
-    .order('created_at');
+function imprimirNotaA4(nota_id){
+  const nota = (DB.notas_credito||[]).find(n=>n.id===nota_id);
+  if(!nota) return;
+
+  const det = (DB.notas_detalle||[]).filter(d=>d.nota_id===nota_id).sort((a,b)=> (a.created_at||'').localeCompare(b.created_at||''));
+  const cliente = getClientName(nota.cliente_id);
 
   const el = $('#printArea'); 
   el.style.display='block'; 
   el.classList.remove('ticket80');
   el.innerHTML = `
-    <h3>Nota — ${nota.clientes?.nombre||''}</h3>
+    <h3>Nota — ${cliente}</h3>
     <div><b>Folio:</b> ${nota.folio} &nbsp; <b>Fecha:</b> ${nota.fecha} &nbsp; <b>Vence:</b> ${nota.vence||''}</div>
     <div><b>Total:</b> $${to2(nota.total)} &nbsp; <b>Saldo:</b> $${to2(nota.saldo)}</div>
-    ${nota.observaciones ? `<div style="margin-top:6mm"><b>Notas del cliente:</b><br>${(nota.observaciones||'').replace(/\n/g,'<br>')}</div>` : ''}
+    ${nota.observaciones ? `<div style="margin-top:6mm"><b>Notas:</b><br>${(nota.observaciones||'').replace(/\n/g,'<br>')}</div>` : ''}
     <br/>
     <table>
       <thead><tr><th>Fecha/Hora</th><th>Producto</th><th>Kg</th><th>Pzas</th><th>P.Unit</th><th>Importe</th></tr></thead>
-      <tbody>${(det||[]).map(d=>`<tr>
+      <tbody>${det.map(d=>`<tr>
         <td>${new Date(d.created_at).toLocaleString()}</td>
         <td>${d.producto}</td>
         <td>${to2(d.cantidad)}</td>
@@ -931,102 +962,38 @@ async function imprimirNotaA4(nota_id){
   setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
 }
 
-/* ====== Ticket 80mm por DIÁLOGO DEL SISTEMA (ventana nueva) ====== */
-async function imprimirNota80mm(nota_id){
-  await saveNotaObs();
+function imprimirNota80mm(nota_id){
+  const nota = (DB.notas_credito||[]).find(n=>n.id===nota_id);
+  if(!nota) return;
 
-  const { data: nota } = await supabase
-    .from('notas_credito')
-    .select('*, clientes(nombre)')
-    .eq('id', nota_id)
-    .single();
-
-  const { data: det }  = await supabase
-    .from('notas_detalle')
-    .select('*')
-    .eq('nota_id', nota_id)
-    .order('created_at');
-
-  const cliente = nota.clientes?.nombre || '(sin nombre)';
+  const det = (DB.notas_detalle||[]).filter(d=>d.nota_id===nota_id).sort((a,b)=> (a.created_at||'').localeCompare(b.created_at||''));
+  const cliente = getClientName(nota.cliente_id) || '(sin nombre)';
   const obs = nota.observaciones || '—';
 
-  const filas = (det || []).map(d=>{
+  const filas = det.map(d=>{
     const cantidadTexto = d.piezas ? `${to2(d.cantidad)} (${d.piezas}pz)` : to2(d.cantidad);
-    return `
-    <tr>
-      <td>${d.producto}</td>
-      <td class="right">${cantidadTexto}</td>
-    </tr>
-  `;
+    return `<tr><td>${d.producto}</td><td class="right">${cantidadTexto}</td></tr>`;
   }).join('');
 
   const html = `
-  <!DOCTYPE html>
-  <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <title>Ticket 80mm</title>
-    <style>
-      :root{--ink:#111}
-      *{box-sizing:border-box}
-      body{
-        margin:0;
-        background:#fff;
-        color:var(--ink);
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      }
-      #ticket{
-        background:#fff;
-        border:1px dashed #999;
-        border-radius:10px;
-        padding:6px;
-        max-width:80mm;
-        margin:0 auto;
-      }
-      #ticket h3{
-        margin:0 0 4px;
-        text-align:center;
-        font-size:14px;
-      }
-      #ticket .meta{
-        font-size:11px;
-        margin-bottom:4px;
-      }
-      #ticket .obs-block{
-        margin-top:2px;
-        white-space:pre-wrap;
-      }
-      #ticket table{
-        width:100%;
-        border-collapse:collapse;
-        font-size:11px;
-        table-layout:fixed;
-      }
-      #ticket th,#ticket td{
-        padding:2px 1px;
-        border-bottom:1px dashed #ddd;
-        word-wrap:break-word;
-      }
-      #ticket tfoot td{
-        border-top:1px solid #999;
-        font-weight:bold;
-      }
-      .right{text-align:right}
-      @media print{
-        @page { size: 80mm auto; margin: 0mm; }
-        body{background:#fff}
-        #ticket{
-          width:80mm;
-          max-width:80mm;
-          margin:0;
-          padding:2mm;
-          border:none;
-        }
-        tr, td, th, table { page-break-inside: avoid; break-inside: avoid; }
-      }
-    </style>
-  </head>
-  <body>
+  <!DOCTYPE html><html lang="es"><head><meta charset="utf-8" />
+  <title>Ticket 80mm</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#fff;color:#111;font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;}
+    #ticket{background:#fff;padding:6px;max-width:80mm;margin:0 auto;}
+    h3{margin:0 0 4px;text-align:center;font-size:14px}
+    .meta{font-size:11px;margin-bottom:4px}
+    .obs-block{margin-top:2px;white-space:pre-wrap}
+    table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
+    td,th{padding:2px 1px;border-bottom:1px dashed #ddd;word-wrap:break-word}
+    .right{text-align:right}
+    @media print{
+      @page { size: 80mm auto; margin: 0mm; }
+      #ticket{width:80mm;max-width:80mm;margin:0;padding:2mm;}
+      tr, td, th, table { page-break-inside: avoid; break-inside: avoid; }
+    }
+  </style></head><body>
     <div id="ticket">
       <h3>${STORE_NAME}</h3>
       <div class="meta">
@@ -1038,220 +1005,154 @@ async function imprimirNota80mm(nota_id){
 ${obs}</div>
       </div>
       <table>
-        <thead>
-          <tr>
-            <th>Prod</th>
-            <th class="right">Kg/Pzas</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${filas}
-        </tbody>
+        <thead><tr><th>Prod</th><th class="right">Kg/Pzas</th></tr></thead>
+        <tbody>${filas}</tbody>
       </table>
       <div style="margin-top:6px;text-align:center;font-size:11px">
         ¡Gracias por su preferencia! ¡Carnes y Visceras del Centro tu mejor aliado!
       </div>
     </div>
-  </body>
-  </html>
-  `;
+  </body></html>`;
 
   const win = window.open('', '_blank', 'width=400,height=600');
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  win.document.open(); win.document.write(html); win.document.close();
   win.focus();
-  setTimeout(()=>{ win.print(); }, 300);
+  setTimeout(()=> win.print(), 300);
+}
+
+function exportNotaCSV(nota_id){
+  const nota = (DB.notas_credito||[]).find(n=>n.id===nota_id);
+  if(!nota) return;
+  const cliente = getClientName(nota.cliente_id);
+  const det = (DB.notas_detalle||[]).filter(d=>d.nota_id===nota_id).sort((a,b)=> (a.created_at||'').localeCompare(b.created_at||''));
+
+  const head=['Cliente','Folio','Fecha','Hora','Producto','Kg','Piezas','Precio','Importe'];
+  const rows = det.map(d=>[
+    cliente,
+    nota.folio,
+    nota.fecha,
+    new Date(d.created_at).toLocaleTimeString(),
+    d.producto,
+    to2(d.cantidad),
+    (d.piezas!=null ? d.piezas : ''),
+    to2(d.precio),
+    to2(d.importe)
+  ]);
+
+  const csv=[head, ...rows].map(r=> r.map(csvEscape).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); 
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); 
+  a.href=url; 
+  a.download=`nota_${nota.folio}.csv`; 
+  a.click(); 
+  URL.revokeObjectURL(url);
 }
 
 /* ========================= REPORTE DIARIO GENERAL ========================= */
-async function imprimirDiaA4(){
+function imprimirDiaA4(){
   const f = diaFecha.value || todayISO();
+  const notas = (DB.notas_credito||[])
+    .filter(n=>n.fecha===f)
+    .sort((a,b)=> (getClientName(a.cliente_id)||'').localeCompare(getClientName(b.cliente_id)||'') || (a.created_at||'').localeCompare(b.created_at||''));
 
-  const { data: notas } = await supabase
-    .from('notas_credito')
-    .select('id, folio, fecha, clientes(nombre)')
-    .eq('fecha', f)
-    .order('clientes(nombre), created_at');
+  const ids = notas.map(n=>n.id);
+  if(!ids.length) return alert('No hay notas ese día');
 
-  const ids = (notas || []).map(n => n.id);
-  if (!ids.length) {
-    alert('No hay notas ese día');
-    return;
-  }
-
-  const { data: det } = await supabase
-    .from('notas_detalle')
-    .select('nota_id, producto, cantidad, piezas, precio, importe, created_at')
-    .in('nota_id', ids)
-    .order('created_at');
+  const det = (DB.notas_detalle||[]).filter(d=> ids.includes(d.nota_id))
+    .sort((a,b)=> (a.created_at||'').localeCompare(b.created_at||''));
 
   const byClient = {};
-  (notas || []).forEach(n => {
-    const c = n.clientes?.nombre || '—';
-    if (!byClient[c]) byClient[c] = { items: [], totalImporte: 0 };
+  notas.forEach(n=>{
+    const c = getClientName(n.cliente_id) || '—';
+    if(!byClient[c]) byClient[c] = { items: [], totalImporte: 0 };
   });
 
-  (det || []).forEach(d => {
-    const nota = (notas || []).find(x => x.id === d.nota_id);
-    const cliente = nota?.clientes?.nombre || '—';
-    if (!byClient[cliente]) byClient[cliente] = { items: [], totalImporte: 0 };
-
+  det.forEach(d=>{
+    const nota = notas.find(x=>x.id===d.nota_id);
+    const cliente = getClientName(nota?.cliente_id) || '—';
+    if(!byClient[cliente]) byClient[cliente] = { items: [], totalImporte: 0 };
     byClient[cliente].items.push({
       folio: nota?.folio || '',
       created_at: d.created_at,
       producto: d.producto,
       cantidad: d.cantidad,
-      piezas: d.piezas
+      piezas: d.piezas,
+      importe: d.importe
     });
-
     byClient[cliente].totalImporte += Number(d.importe || 0);
   });
 
-  const totalDia = (det || []).reduce((a, b) => a + Number(b.importe || 0), 0);
+  const totalDia = det.reduce((a,b)=>a+Number(b.importe||0),0);
   diaResumen.textContent = `Clientes: ${Object.keys(byClient).length} · Total día: $${to2(totalDia)}`;
 
   let html = `
-  <!DOCTYPE html>
-  <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <title>Reporte diario</title>
-    <style>
-      @page {
-        size: letter landscape;
-        margin: 8mm;
-      }
-      body {
-        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-        font-size: 11px;
-        margin: 0;
-      }
-      h3 {
-        margin: 0 0 4mm 0;
-        font-size: 14px;
-      }
-      h4 {
-        margin: 2mm 0 1mm 0;
-        font-size: 11px;
-      }
-      .subinfo {
-        font-size: 10px;
-        margin-bottom: 3mm;
-      }
-      #columns {
-        column-count: 2;
-        column-gap: 5mm;
-      }
-      .client-group {
-        break-inside: avoid;
-        page-break-inside: avoid;
-        margin-bottom: 3mm;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      th, td {
-        border: 1px solid #ccc;
-        padding: 2px 3px;
-        font-size: 9.5px;
-        text-align: left;
-      }
-      th {
-        background: #f3f3f3;
-      }
-    </style>
-  </head>
-  <body>
+  <!DOCTYPE html><html lang="es"><head><meta charset="utf-8" />
+  <title>Reporte diario</title>
+  <style>
+    @page { size: letter landscape; margin: 8mm; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 11px; margin: 0; }
+    h3 { margin: 0 0 4mm 0; font-size: 14px; }
+    h4 { margin: 2mm 0 1mm 0; font-size: 11px; }
+    .subinfo { font-size: 10px; margin-bottom: 3mm; }
+    #columns { column-count: 2; column-gap: 5mm; }
+    .client-group { break-inside: avoid; page-break-inside: avoid; margin-bottom: 3mm; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 2px 3px; font-size: 9.5px; text-align: left; }
+    th { background: #f3f3f3; }
+  </style></head><body>
     <h3>Reporte diario — ${f}</h3>
-    <div class="subinfo">
-      Clientes: ${Object.keys(byClient).length} · Total día: $${to2(totalDia)}
-    </div>
-    <div id="columns">
-  `;
+    <div class="subinfo">Clientes: ${Object.keys(byClient).length} · Total día: $${to2(totalDia)}</div>
+    <div id="columns">`;
 
-  Object.entries(byClient).forEach(([cliente, pack]) => {
-    html += `
-      <div class="client-group">
-        <h4>${cliente} — Total: $${to2(pack.totalImporte)}</h4>
-        <table>
-          <thead>
-            <tr>
-              <th>Folio</th>
-              <th>Hora</th>
-              <th>Producto</th>
-              <th>Kg</th>
-              <th>Pzas</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-
-    html += (pack.items || []).map(d => `
+  Object.entries(byClient).forEach(([cliente, pack])=>{
+    html += `<div class="client-group">
+      <h4>${cliente} — Total: $${to2(pack.totalImporte)}</h4>
+      <table><thead><tr><th>Folio</th><th>Hora</th><th>Producto</th><th>Kg</th><th>Pzas</th></tr></thead><tbody>`;
+    html += (pack.items||[]).map(d=>`
       <tr>
         <td>${d.folio}</td>
         <td>${new Date(d.created_at).toLocaleTimeString()}</td>
         <td>${d.producto}</td>
         <td>${to2(d.cantidad)}</td>
-        <td>${d.piezas != null ? d.piezas : ''}</td>
-      </tr>
-    `).join('');
-
-    html += `
-          </tbody>
-        </table>
-      </div>
-    `;
+        <td>${d.piezas!=null ? d.piezas : ''}</td>
+      </tr>`).join('');
+    html += `</tbody></table></div>`;
   });
 
-  html += `
-    </div>
-  </body>
-  </html>
-  `;
+  html += `</div></body></html>`;
 
   const win = window.open('', '_blank', 'width=1200,height=800');
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  win.document.open(); win.document.write(html); win.document.close();
   win.focus();
-
-  setTimeout(() => {
-    win.print();
-  }, 400);
+  setTimeout(()=> win.print(), 400);
 }
 
-async function exportDiaCSV(){
+function exportDiaCSV(){
   const f = diaFecha.value || todayISO();
-  const { data: notas } = await supabase
-    .from('notas_credito')
-    .select('id, folio, fecha, clientes(nombre)')
-    .eq('fecha', f);
-
-  const ids=(notas||[]).map(n=>n.id);
+  const notas = (DB.notas_credito||[]).filter(n=>n.fecha===f);
+  const ids = notas.map(n=>n.id);
   if(!ids.length) return alert('No hay notas ese día');
 
-  const { data: det } = await supabase
-    .from('notas_detalle')
-    .select('nota_id, producto, cantidad, piezas, precio, importe, created_at')
-    .in('nota_id', ids);
+  const det = (DB.notas_detalle||[]).filter(d=> ids.includes(d.nota_id));
 
   const head=['Cliente','Folio','Fecha','Hora','Producto','Kg','Piezas','Precio','Importe'];
-  const rows=(det||[]).map(d=>{
-    const n=(notas||[]).find(x=>x.id===d.nota_id) || {};
+  const rows = det.map(d=>{
+    const n = notas.find(x=>x.id===d.nota_id);
+    const cliente = getClientName(n?.cliente_id) || '';
     return [
-      (n.clientes?.nombre||''), 
-      n.folio, 
-      f, 
-      new Date(d.created_at).toLocaleTimeString(), 
-      d.producto, 
-      to2(d.cantidad), 
-      (d.piezas != null ? d.piezas : ''), 
-      to2(d.precio), 
+      cliente,
+      n?.folio || '',
+      f,
+      new Date(d.created_at).toLocaleTimeString(),
+      d.producto,
+      to2(d.cantidad),
+      (d.piezas!=null ? d.piezas : ''),
+      to2(d.precio),
       to2(d.importe)
     ];
   });
+
   const csv=[head, ...rows].map(r=> r.map(csvEscape).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); 
   const url=URL.createObjectURL(blob);
@@ -1263,17 +1164,79 @@ async function exportDiaCSV(){
 }
 
 /* ========================= CERRAR ========================= */
-async function cerrarNota(){
-  const n=activeNota(); 
+function cerrarNota(){
+  const n = activeNota();
   if(!n) return alert('Sin nota');
-  await supabase.from('notas_credito').update({estado:'cerrada'}).eq('id', n.id);
-  await renderVista(); 
-  await loadBandeja();
+  const idx = DB.notas_credito.findIndex(x=>x.id===n.id);
+  if(idx>=0){
+    DB.notas_credito[idx].estado='cerrada';
+    saveDB(DB);
+  }
+  // limpiar slot activo
+  if(slotActive==='A') notaA=null; else notaB=null;
+  renderVista();
+  loadBandeja();
   alert('✅ Nota cerrada');
 }
+
+/* ========================= BACKUP / RESTORE ========================= */
+function exportDBJson(){
+  const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url;
+  a.download=`VDC360_backup_${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importDBJson(e){
+  const file = e.target.files?.[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const obj = JSON.parse(String(r.result||'{}'));
+      if(!obj || !obj.clientes || !obj.productos) throw new Error("json inválido");
+      DB = obj;
+      saveDB(DB);
+      loadCatalogosFromDB();
+      notaA=null; notaB=null;
+      renderVista();
+      loadBandeja();
+      alert('✅ Restaurado correctamente');
+    }catch(err){
+      alert('❌ No se pudo restaurar: JSON inválido');
+      console.error(err);
+    }finally{
+      $('#importFile').value='';
+    }
+  };
+  r.readAsText(file);
+}
+function resetDB(){
+  if(!confirm('¿Seguro que quieres BORRAR TODO lo local?')) return;
+  localStorage.removeItem(DBKEY);
+  DB = loadDB();
+  loadCatalogosFromDB();
+  notaA=null; notaB=null;
+  renderVista();
+  loadBandeja();
+  alert('✅ Listo. Base local reiniciada.');
+}
+
+/* ========================= START ========================= */
+function boot(){
+  loadCatalogosFromDB();
+  notaFolio.value=genFolio();
+  renderVista();
+  loadBandeja();
+  refreshNotaInfo();
+}
+boot();
 </script>
 </body>
 </html>
+
 
 
 
