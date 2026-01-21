@@ -945,6 +945,9 @@
             <button class="btn btn-ghost" data-a4="${r.id}" type="button">A4</button>
             <button class="btn btn-ghost" data-id80="${r.id}" type="button">80mm</button>
             <button class="btn btn-ghost" data-wa="${r.id}" type="button">WA</button>
+
+            <!-- ✅ NUEVO BOTÓN: cerrar nota desde esta misma bandeja -->
+            <button class="btn btn-ghost danger" data-close="${r.id}" type="button">Cerrar</button>
           </td>
         </tr>
       `).join('');
@@ -954,6 +957,9 @@
       bandejaBody.querySelectorAll('[data-a4]').forEach(b=> b.onclick = ()=> imprimirNotaA4(b.dataset.a4));
       bandejaBody.querySelectorAll('[data-id80]').forEach(b=> b.onclick = ()=> imprimirNota80mm(b.dataset.id80));
       bandejaBody.querySelectorAll('[data-wa]').forEach(b=> b.onclick = ()=> waNota(b.dataset.wa));
+
+      // ✅ NUEVO handler
+      bandejaBody.querySelectorAll('[data-close]').forEach(b=> b.onclick = ()=> cerrarNotaById(b.dataset.close));
     }
 
     async function cargarEnSlot(slot, nota_id, cliente_id){
@@ -1373,6 +1379,32 @@
     }
 
     /* ========================= CERRAR ========================= */
+
+    // ✅ NUEVO: cerrar nota por ID (para usarlo desde la bandeja)
+    async function cerrarNotaById(nota_id){
+      if(!nota_id) return;
+      if(!confirm('¿Cerrar esta nota?')) return;
+
+      const { error } = await sb
+        .from('notas_credito')
+        .update({estado:'cerrada'})
+        .eq('id', nota_id);
+
+      if(error){
+        console.error(error);
+        alert('No se pudo cerrar la nota');
+        return;
+      }
+
+      // Si esa nota estaba cargada en algún slot, la limpiamos
+      if(notaA?.id === nota_id) notaA = null;
+      if(notaB?.id === nota_id) notaB = null;
+
+      await renderVista();
+      await loadBandeja();
+      alert('✅ Nota cerrada');
+    }
+
     async function cerrarNota(){
       const n = activeNota();
       if(!n) return alert('Sin nota');
@@ -1385,5 +1417,3 @@
   </script>
 </body>
 </html>
-
-
