@@ -170,6 +170,31 @@
             <div>
               <label>Kilos</label>
               <input id="pKg" type="number" min="0" step="0.01" value="1" />
+
+              <!-- ✅ BÁSCULA (Realtime entre dispositivos vía Supabase) -->
+              <div class="flex" style="margin-top:8px; gap:8px">
+                <button type="button" class="btn btn-ghost" id="btnPeso">📥 Tomar peso</button>
+
+                <label class="muted" style="display:flex; align-items:center; gap:8px; margin:0">
+                  <input type="checkbox" id="rtBascula" />
+                  Real-time
+                </label>
+
+                <select id="rtModo" style="max-width:220px">
+                  <option value="auto" selected>Auto (Realtime Supabase)</option>
+                  <option value="poll">Poll (consultar cada X ms)</option>
+                </select>
+
+                <select id="rtMs" style="max-width:140px">
+                  <option value="250">0.25s</option>
+                  <option value="500" selected>0.50s</option>
+                  <option value="800">0.80s</option>
+                  <option value="1000">1.0s</option>
+                  <option value="1500">1.5s</option>
+                </select>
+
+                <span id="pesoStatus" class="pill">Báscula: —</span>
+              </div>
             </div>
 
             <div>
@@ -350,6 +375,182 @@
 
     // ✅ Pesos fijos por caja
     const CAJA_KG = 27.22;
+
+    /* ========================= BÁSCULA — REALTIME ENTRE DISPOSITIVOS (SUPABASE) =========================
+      Requiere tabla: bascula_live(id PK text, peso numeric, updated_at timestamptz)
+      Windows (python) hace UPSERT a id='torrey_1'
+    =============================================================================================== */
+    const BASCULA_ID = "torrey_1";     // ✅ tu única báscula
+    const BASCULA_TABLE = "bascula_live";
+
+    const btnPeso = document.getElementById("btnPeso");
+    const rtBascula = document.getElementById("rtBascula");
+    const rtModo = document.getElementById("rtModo");
+    const rtMs = document.getElementById("rtMs");
+    const pesoStatus = document.getElementById("pesoStatus");
+
+    let basculaChannel = null;
+    let basculaPollTimer = null;
+    let basculaInFlight = false;
+
+    const bascStable = { last:null, okCount:0, needed:2, tol:0.03 };
+
+    function setPesoStatus(txt, ok=true){
+      if(!pesoStatus) return;
+      pesoStatus.textContent = txt || "Báscula: —";
+      pesoStatus.style.background = ok ? "#eef7f0" : "#fee2e2";
+      pesoStatus.style.color = ok ? "#0a7a3b" : "#b91c1c";
+    }
+
+    function setKgValue(kg){
+      const el = document.getElementById("pKg");
+      if(!el) return;
+
+      const next = Number(kg || 0);
+      if(!isFinite(next)) return;
+
+      const current = Number(el.value || 0);
+      if (Math.abs(current - next) < 0.001) return;
+
+      el.value = next.toFixed(2);
+      el.dispatchEvent(new Event("input", { bubbles:true }));
+      el.dispatchEvent(new Event("change", { bubbles:true }));
+    }
+
+    function updateStability(kg){
+      if (bascStable.last == null){
+        bascStable.last = kg;
+        bascStable.okCount = 1;
+        return { accept:false, okCount:bascStable.okCount };
+      }
+      if (Math.abs(kg - bascStable.last) <= bascStable.tol){
+        bascStable.okCount += 1;
+      } else {
+        bascStable.last = kg;
+        bascStable.okCount = 1;
+      }
+      return { accept: bascStable.okCount >= bascStable.needed, okCount:bascStable.okCount };
+    }
+
+    async function readPesoFromSupabase(){
+      const { data, error } = await sb
+        .from(BASCULA_TABLE)
+        .select("peso, updated_at")
+        .eq("id", BASCULA_ID)
+        .maybeSingle();
+
+      if(error) throw error;
+      const peso = data?.peso;
+      return { peso: (peso==null ? null : Math.abs(Number(peso))), updated_at: data?.updated_at || null };
+    }
+
+    async function tomarPesoManual(){
+      if(!btnPeso) return;
+      btnPeso.disabled = true;
+      setPesoStatus("Báscula: leyendo…", true);
+
+      try{
+        const { peso } = await readPesoFromSupabase();
+        if(peso == null){
+          setPesoStatus("Báscula: sin lectura", false);
+          alert("No hay peso en Supabase. Revisa que el Windows esté subiendo bascula_live.");
+          return;
+        }
+        setKgValue(peso);
+        setPesoStatus(`Báscula OK: ${peso.toFixed(2)} kg`, true);
+      }catch(e){
+        console.error(e);
+        setPesoStatus("Báscula: error", false);
+        alert("Error leyendo Supabase (bascula_live). Revisa internet / RLS / tabla.");
+      }finally{
+        btnPeso.disabled = false;
+      }
+    }
+
+    function stopBasculaRealtime(){
+      if(basculaPollTimer){ clearInterval(basculaPollTimer); basculaPollTimer = null; }
+      if(basculaChannel){ sb.removeChannel(basculaChannel); basculaChannel = null; }
+      bascStable.last = null; bascStable.okCount = 0;
+      setPesoStatus("Báscula: —", true);
+    }
+
+    function startBasculaRealtime(){
+      stopBasculaRealtime();
+
+      const modo = (rtModo?.value || "auto");
+      const interval = Number(rtMs?.value || 500);
+
+      setPesoStatus("Báscula: real-time ON…", true);
+
+      if(modo === "poll"){
+        basculaPollTimer = setInterval(async ()=>{
+          if(basculaInFlight) return;
+          basculaInFlight = true;
+          try{
+            const { peso } = await readPesoFromSupabase();
+            if(peso == null){
+              setPesoStatus("Báscula: sin lectura", false);
+              return;
+            }
+            const st = updateStability(peso);
+            if(st.accept){
+              setKgValue(peso);
+              setPesoStatus(`Báscula: ${peso.toFixed(2)} kg ✅`, true);
+            } else {
+              setPesoStatus(`Báscula: ${peso.toFixed(2)} kg (est ${st.okCount}/${bascStable.needed})`, true);
+            }
+          }catch(e){
+            console.error(e);
+            setPesoStatus("Báscula: error (poll)", false);
+          }finally{
+            basculaInFlight = false;
+          }
+        }, interval);
+        return;
+      }
+
+      // ✅ Realtime Supabase
+      basculaChannel = sb
+        .channel(`bascula-${BASCULA_ID}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: BASCULA_TABLE, filter: `id=eq.${BASCULA_ID}` },
+          async (payload)=>{
+            const row = payload.new || payload.old;
+            const peso = row?.peso;
+            const kg = (peso==null ? null : Math.abs(Number(peso)));
+
+            if(kg == null){
+              setPesoStatus("Báscula: sin lectura", false);
+              return;
+            }
+
+            const st = updateStability(kg);
+            if(st.accept){
+              setKgValue(kg);
+              setPesoStatus(`Báscula: ${kg.toFixed(2)} kg ✅`, true);
+            } else {
+              setPesoStatus(`Báscula: ${kg.toFixed(2)} kg (est ${st.okCount}/${bascStable.needed})`, true);
+            }
+          }
+        )
+        .subscribe(async (status)=>{
+          if(status === "SUBSCRIBED"){
+            try{
+              const { peso } = await readPesoFromSupabase();
+              if(peso != null){
+                setKgValue(peso);
+                setPesoStatus(`Báscula: ${peso.toFixed(2)} kg (init)`, true);
+              }
+            }catch{}
+          }
+        });
+    }
+
+    btnPeso?.addEventListener("click", tomarPesoManual);
+    rtBascula?.addEventListener("change", ()=> rtBascula.checked ? startBasculaRealtime() : stopBasculaRealtime());
+    rtModo?.addEventListener("change", ()=> { if(rtBascula?.checked) startBasculaRealtime(); });
+    rtMs?.addEventListener("change", ()=> { if(rtBascula?.checked) startBasculaRealtime(); });
 
     /* ========================= UTILS ========================= */
     const $ = s => document.querySelector(s);
@@ -642,11 +843,9 @@
       capPG.style.display = pg ? 'block' : 'none';
       capNormal.style.display = pg ? 'none' : 'block';
 
-      // Defaults suaves: solo focus rápido
       if(pg){
         setTimeout(()=>{ seboKg?.focus(); seboKg?.select(); }, 0);
       }else{
-        // modo normal
         setTimeout(()=>{ pProducto?.focus(); }, 0);
       }
     }
@@ -707,7 +906,6 @@
     }
 
     function autoKgFromCaja(){
-      // Solo en modo normal
       if(capNormal.style.display === 'none') return;
 
       const prod = (pProducto.value||'').trim();
@@ -853,7 +1051,8 @@
       }
 
       pProducto.value = '';
-      pKg.value = '1';
+      // si está RT ON, no piso el Kg; si no, regreso a 1
+      if(!rtBascula?.checked) pKg.value = '1';
       pPzas.value = '';
       prefPrecio();
       clearDirty();
@@ -960,7 +1159,6 @@
       vEstado.textContent = nota.estado || 'abierta';
       vSaldo.textContent = to2(nota.saldo || 0);
 
-      /* === Observaciones automáticas por producto === */
       const autoObs = buildAutoObsFromDetalle(det || []);
       notaObs.value = autoObs;
 
@@ -999,7 +1197,6 @@
       updateCaptureMode();
     }
 
-    /* ===== Editar en línea ===== */
     function makeCellEditable(td, nota_id){
       if(td.classList.contains('cell-editing')) return;
 
@@ -1079,7 +1276,6 @@
       input.addEventListener('blur', ()=> commit(true));
     }
 
-    /* ===== Borrar partida ===== */
     async function deleteDetalle(detId){
       if(!confirm('¿Borrar esta partida?')) return;
       const n = activeNota();
@@ -1088,7 +1284,7 @@
       await recalcNota(n.id);
     }
 
-    /* ========================= REALTIME ========================= */
+    /* ========================= REALTIME (NOTAS) ========================= */
     function subRealtime(slot){
       const nota = slot==='A' ? notaA : notaB;
       if(!nota) return;
@@ -1561,7 +1757,6 @@
       URL.revokeObjectURL(url);
     }
 
-    /* ========================= CERRAR ========================= */
     async function cerrarNotaById(nota_id){
       if(!nota_id) return;
       if(!confirm('¿Cerrar esta nota?')) return;
