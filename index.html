@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -69,6 +70,79 @@
       #printArea.ticket80 .obs{ white-space:pre-wrap; font-size:11px; }
       #printArea.ticket80 .thanks{ text-align:center; margin-top:8px; font-size:11px }
     }
+
+    /* ===========================
+       ✅ BANDEJA COMPACTA (SIN SCROLL INFINITO)
+       - contenedor con scroll interno
+       - header sticky
+       - buscador
+       - menú de acciones dropdown
+    =========================== */
+    .bandejaWrap{
+      max-height: 55vh;
+      overflow:auto;
+      border:1px solid #eef0f2;
+      border-radius:12px;
+      margin-top:12px;
+    }
+    .bandejaWrap table{ margin-top:0; }
+    .bandejaWrap thead th{
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background:#fafafa;
+    }
+    .bandejaTools{
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      flex-wrap:wrap;
+    }
+    .bandejaTools input, .bandejaTools select, .bandejaTools button{ margin-top:0; }
+
+    details.actionMenu{ position:relative; display:inline-block; }
+    details.actionMenu summary{
+      list-style:none;
+      cursor:pointer;
+      user-select:none;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      font-weight:800;
+    }
+    details.actionMenu[open] summary{
+      background:#0a7a3b;
+      color:#fff;
+      border-color:#0a7a3b;
+    }
+    details.actionMenu summary::-webkit-details-marker{ display:none; }
+
+    .menuPanel{
+      position:absolute;
+      right:0;
+      margin-top:8px;
+      min-width:220px;
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      box-shadow:0 12px 28px rgba(0,0,0,.12);
+      padding:8px;
+      z-index:50;
+    }
+    .menuPanel button{
+      width:100%;
+      text-align:left;
+      padding:10px 10px;
+      border-radius:10px;
+      border:1px solid #eef0f2;
+      background:#fff;
+      margin:6px 0;
+      cursor:pointer;
+      font-weight:800;
+    }
+    .menuPanel button:hover{ background:#f6f7f8; }
+    .menuPanel button.danger{ border-color:#fee2e2; color:#b91c1c; }
   </style>
 </head>
 
@@ -314,31 +388,43 @@
       </section>
     </div>
 
-    <!-- BANDEJA -->
+    <!-- ✅ BANDEJA (COMPACTA + BUSCADOR + ACCIONES DROPDOWN + SCROLL INTERNO) -->
     <section class="card">
       <h2>📥 Notas abiertas hoy (todas)</h2>
 
-      <div class="row">
-        <div>
+      <div class="bandejaTools">
+        <div style="flex:1; min-width:220px">
           <label>Fecha</label>
           <input id="bandejaFecha" type="date" />
         </div>
 
-        <div>
-          <label>&nbsp;</label>
-          <div class="flex">
-            <button class="btn btn-ghost" id="btnBandeja" type="button">Actualizar</button>
-            <span class="muted">Carga una nota al Slot A o B para alternar rápido.</span>
-          </div>
+        <div style="flex:2; min-width:260px">
+          <label>Buscar (folio o cliente)</label>
+          <input id="bandejaBuscar" placeholder="Ej. CVC-20260206... o Carnicería" />
         </div>
+
+        <div style="min-width:220px">
+          <label>&nbsp;</label>
+          <button class="btn btn-ghost" id="btnBandeja" type="button">Actualizar</button>
+        </div>
+
+        <span class="muted" style="align-self:center">Tip: carga una nota al Slot A o B y alterna rápido.</span>
       </div>
 
-      <table>
-        <thead>
-          <tr><th>Folio</th><th>Cliente</th><th>Saldo</th><th>Estado</th><th>Acciones</th></tr>
-        </thead>
-        <tbody id="bandejaBody"></tbody>
-      </table>
+      <div class="bandejaWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Folio</th>
+              <th>Cliente</th>
+              <th>Saldo</th>
+              <th>Estado</th>
+              <th style="text-align:right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="bandejaBody"></tbody>
+        </table>
+      </div>
     </section>
 
     <!-- REPORTE DIARIO GENERAL -->
@@ -677,6 +763,7 @@
     const vistaTotal = $('#vistaTotal');
 
     const bandejaFecha = $('#bandejaFecha');
+    const bandejaBuscar = $('#bandejaBuscar');   // ✅ NUEVO buscador
     const bandejaBody = $('#bandejaBody');
 
     const diaFecha = $('#diaFecha');
@@ -740,6 +827,15 @@
     $('#btnBandeja').addEventListener('click', loadBandeja);
     $('#btnDiaA4').addEventListener('click', imprimirDiaA4);
     $('#btnDiaCSV').addEventListener('click', exportDiaCSV);
+
+    // ✅ buscador en vivo
+    bandejaBuscar?.addEventListener('input', ()=> loadBandeja());
+
+    // ✅ cerrar dropdown si click fuera
+    document.addEventListener('click', (e)=>{
+      const inside = e.target.closest?.('details.actionMenu');
+      if(!inside) cerrarTodosLosMenus();
+    });
 
     // Cambios de cliente/teléfono ligados al slot activo
     cliSelect.addEventListener('change', ()=>{
@@ -1068,7 +1164,6 @@
       }
 
       pProducto.value = '';
-      // si está RT ON, no piso el Kg; si no, regreso a 1
       if(!rtBascula?.checked) pKg.value = '1';
       pPzas.value = '';
       prefPrecio();
@@ -1324,41 +1419,86 @@
       if(slot==='A') chA=ch; else chB=ch;
     }
 
-    /* ========================= BANDEJA ========================= */
+    /* ========================= BANDEJA (COMPACTA) ========================= */
+    function cerrarTodosLosMenus(){
+      document.querySelectorAll('details.actionMenu[open]').forEach(d=> d.open = false);
+    }
+
     async function loadBandeja(){
       const f = bandejaFecha.value || todayISO();
+      const q = (bandejaBuscar?.value || '').trim().toLowerCase();
 
-      const { data } = await sb
+      const { data, error } = await sb
         .from('notas_credito')
-        .select('id,folio,saldo,estado,clientes(nombre),cliente_id')
+        .select('id,folio,saldo,estado,clientes(nombre),cliente_id,created_at')
         .eq('fecha', f)
         .eq('estado','abierta')
-        .order('created_at');
+        .order('created_at', { ascending:false });
 
-      const rows = data || [];
+      if(error){
+        console.error(error);
+        bandejaBody.innerHTML = `<tr><td colspan="5" class="muted">Error cargando bandeja</td></tr>`;
+        return;
+      }
+
+      let rows = data || [];
+
+      // ✅ filtro local por folio o cliente
+      if(q){
+        rows = rows.filter(r=>{
+          const fol = (r.folio||'').toLowerCase();
+          const cli = (r.clientes?.nombre||'').toLowerCase();
+          return fol.includes(q) || cli.includes(q);
+        });
+      }
+
       bandejaBody.innerHTML = rows.map(r=> `
         <tr>
           <td>${r.folio}</td>
           <td>${r.clientes?.nombre||''}</td>
           <td>$${to2(r.saldo||0)}</td>
           <td>${r.estado||'abierta'}</td>
-          <td class="flex">
-            <button class="btn btn-ghost" data-usea="${r.id}" data-cid="${r.cliente_id}" type="button">Usar en A</button>
-            <button class="btn btn-ghost" data-useb="${r.id}" data-cid="${r.cliente_id}" type="button">Usar en B</button>
-            <button class="btn btn-ghost" data-a4="${r.id}" type="button">A4</button>
-            <button class="btn btn-ghost" data-id80="${r.id}" type="button">80mm</button>
-            <button class="btn btn-ghost" data-wa="${r.id}" type="button">WA</button>
-            <button class="btn btn-ghost danger" data-close="${r.id}" type="button">Cerrar</button>
+          <td style="text-align:right">
+            <details class="actionMenu">
+              <summary>Acciones ▾</summary>
+              <div class="menuPanel">
+                <button type="button" data-usea="${r.id}" data-cid="${r.cliente_id}">Usar en A</button>
+                <button type="button" data-useb="${r.id}" data-cid="${r.cliente_id}">Usar en B</button>
+                <button type="button" data-a4="${r.id}">Imprimir A4</button>
+                <button type="button" data-id80="${r.id}">Imprimir 80mm</button>
+                <button type="button" data-wa="${r.id}">Enviar WA</button>
+                <button type="button" class="danger" data-close="${r.id}">Cerrar</button>
+              </div>
+            </details>
           </td>
         </tr>
       `).join('');
 
-      bandejaBody.querySelectorAll('[data-usea]').forEach(b=> b.onclick = ()=> cargarEnSlot('A', b.dataset.usea, b.dataset.cid));
-      bandejaBody.querySelectorAll('[data-useb]').forEach(b=> b.onclick = ()=> cargarEnSlot('B', b.dataset.useb, b.dataset.cid));
-      bandejaBody.querySelectorAll('[data-a4]').forEach(b=> b.onclick = ()=> imprimirNotaA4(b.dataset.a4));
-      bandejaBody.querySelectorAll('[data-id80]').forEach(b=> b.onclick = ()=> imprimirNota80mm(b.dataset.id80));
-      bandejaBody.querySelectorAll('[data-wa]').forEach(b=> b.onclick = ()=> waNota(b.dataset.wa));
-      bandejaBody.querySelectorAll('[data-close]').forEach(b=> b.onclick = ()=> cerrarNotaById(b.dataset.close));
+      // handlers
+      bandejaBody.querySelectorAll('[data-usea]').forEach(b=> b.onclick = ()=>{
+        cerrarTodosLosMenus();
+        cargarEnSlot('A', b.dataset.usea, b.dataset.cid);
+      });
+      bandejaBody.querySelectorAll('[data-useb]').forEach(b=> b.onclick = ()=>{
+        cerrarTodosLosMenus();
+        cargarEnSlot('B', b.dataset.useb, b.dataset.cid);
+      });
+      bandejaBody.querySelectorAll('[data-a4]').forEach(b=> b.onclick = ()=>{
+        cerrarTodosLosMenus();
+        imprimirNotaA4(b.dataset.a4);
+      });
+      bandejaBody.querySelectorAll('[data-id80]').forEach(b=> b.onclick = ()=>{
+        cerrarTodosLosMenus();
+        imprimirNota80mm(b.dataset.id80);
+      });
+      bandejaBody.querySelectorAll('[data-wa]').forEach(b=> b.onclick = ()=>{
+        cerrarTodosLosMenus();
+        waNota(b.dataset.wa);
+      });
+      bandejaBody.querySelectorAll('[data-close]').forEach(b=> b.onclick = ()=>{
+        cerrarTodosLosMenus();
+        cerrarNotaById(b.dataset.close);
+      });
     }
 
     async function cargarEnSlot(slot, nota_id, cliente_id){
@@ -1809,3 +1949,4 @@
   </script>
 </body>
 </html>
+```
