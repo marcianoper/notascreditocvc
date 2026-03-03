@@ -1666,92 +1666,105 @@
     <head>
       <meta charset="utf-8" />
       <title>Ticket 80mm</title>
-      <style>
-        :root{--ink:#111}
-        *{box-sizing:border-box}
-        body{
-          margin:0;background:#fff;color:var(--ink);
-          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
+     <style>
+  :root{--ink:#000}
+  *{box-sizing:border-box}
 
-        /* ✅ Contenedor */
-        #ticket{
-          background:#fff;border:1px dashed #999;border-radius:10px;
-          padding:8px;max-width:80mm;margin:0 auto;
-        }
+  body{
+    margin:0;
+    background:#fff;
+    color:var(--ink);
+    font-family: Arial, Helvetica, sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 
-        /* ✅ Título más grande y en negritas */
-        #ticket h3{
-          margin:0 0 6px;
-          text-align:center;
-          font-size:18px;
-          font-weight:900;
-          letter-spacing:.2px;
-        }
+  #ticket{
+    background:#fff;
+    padding:6px;
+    max-width:80mm;
+    margin:0 auto;
+  }
 
-        /* ✅ Meta más grande (cliente/folio/fecha/obs) */
-        #ticket .meta{
-          font-size:14px;
-          line-height:1.25;
-          margin-bottom:6px;
-          font-weight:700;
-        }
+  /* Título principal */
+  #ticket h3{
+    margin:0 0 6px;
+    text-align:center;
+    font-size:16px;
+    font-weight:700;
+  }
 
-        #ticket .obs-block{
-          margin-top:6px;
-          white-space:pre-wrap;
-          font-weight:700;
-        }
+  /* Datos */
+  #ticket .meta{
+    font-size:13px;
+    line-height:1.3;
+    margin-bottom:6px;
+    font-weight:600;
+  }
 
-        /* ✅ Tabla más grande */
-        #ticket table{
-          width:100%;
-          border-collapse:collapse;
-          font-size:14px;
-          table-layout:fixed;
-        }
+  #ticket .obs-block{
+    margin-top:4px;
+    white-space:pre-wrap;
+    font-weight:600;
+  }
 
-        /* ✅ Encabezados en negritas */
-        #ticket thead th{
-          font-weight:900;
-          border-bottom:2px dashed #000;
-          padding:4px 1px;
-        }
+  /* Tabla */
+  #ticket table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+    table-layout:fixed;
+  }
 
-        #ticket th,#ticket td{
-          padding:4px 1px;
-          border-bottom:1px dashed #ddd;
-          word-wrap:break-word;
-          vertical-align:top;
-        }
+  /* Encabezado */
+  #ticket thead th{
+    font-weight:700;
+    border-bottom:2px solid #000;
+    padding:5px 2px;
+  }
 
-        /* ✅ Filas: producto y cantidad en negritas y un poquito más grande */
-        #ticket td.prod{ font-weight:900; font-size:15px; }
-        #ticket td.cant{ font-weight:900; font-size:15px; }
+  #ticket th,#ticket td{
+    padding:5px 2px;
+    word-wrap:break-word;
+    vertical-align:top;
+  }
 
-        .right{text-align:right}
+  /* 🔥 Línea marcada entre productos */
+  #ticket tbody tr{
+    border-bottom:2px solid #000;
+  }
 
-        /* ✅ Footer más grande y bold */
-        .thanks{
-          margin-top:10px;
-          text-align:center;
-          font-size:13px;
-          font-weight:900;
-          line-height:1.25;
-        }
+  #ticket td.prod{
+    font-weight:600;
+    font-size:14px;
+  }
 
-        @media print{
-          @page{ size: 80mm auto; margin: 0mm; }
-          body{background:#fff}
-          #ticket{
-            width:80mm;max-width:80mm;margin:0;
-            padding:3mm;border:none;border-radius:0;
-          }
-          tr, td, th, table{ page-break-inside: avoid; break-inside: avoid; }
-        }
-      </style>
+  #ticket td.cant{
+    font-weight:700;
+    font-size:14px;
+  }
+
+  .right{text-align:right}
+
+  /* Footer */
+  .thanks{
+    margin-top:10px;
+    text-align:center;
+    font-size:12.5px;
+    font-weight:600;
+    line-height:1.3;
+  }
+
+  @media print{
+    @page{ size: 80mm auto; margin: 0mm; }
+    #ticket{
+      width:80mm;
+      max-width:80mm;
+      margin:0;
+      padding:3mm;
+    }
+  }
+</style>
     </head>
     <body>
       <div id="ticket">
