@@ -1632,97 +1632,166 @@
       setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
     }
 
-    async function imprimirNota80mm(nota_id){
-      await saveNotaObs();
+   async function imprimirNota80mm(nota_id){
+  await saveNotaObs();
 
-      const { data: nota } = await sb
-        .from('notas_credito')
-        .select('*, clientes(nombre)')
-        .eq('id', nota_id)
-        .single();
+  const { data: nota } = await sb
+    .from('notas_credito')
+    .select('*, clientes(nombre)')
+    .eq('id', nota_id)
+    .single();
 
-      const { data: det } = await sb
-        .from('notas_detalle')
-        .select('*')
-        .eq('nota_id', nota_id)
-        .order('created_at');
+  const { data: det } = await sb
+    .from('notas_detalle')
+    .select('*')
+    .eq('nota_id', nota_id)
+    .order('created_at');
 
-      const cliente = nota.clientes?.nombre || '(sin nombre)';
-      const obs = nota.observaciones || '—';
+  const cliente = nota.clientes?.nombre || '(sin nombre)';
+  const obs = nota.observaciones || '—';
 
-      const filas = (det || []).map(d=>{
-        const cantidadTexto = d.piezas ? `${to2(d.cantidad)} (${d.piezas}pz)` : to2(d.cantidad);
-        return `
-          <tr>
-            <td>${d.producto}</td>
-            <td class="right">${cantidadTexto}</td>
-          </tr>
-        `;
-      }).join('');
+  const filas = (det || []).map(d=>{
+    const cantidadTexto = d.piezas ? `${to2(d.cantidad)} (${d.piezas}pz)` : to2(d.cantidad);
+    return `
+      <tr>
+        <td class="prod">${d.producto}</td>
+        <td class="right cant">${cantidadTexto}</td>
+      </tr>
+    `;
+  }).join('');
 
-      const html = `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-          <meta charset="utf-8" />
-          <title>Ticket 80mm</title>
-          <style>
-            :root{--ink:#111}
-            *{box-sizing:border-box}
-            body{
-              margin:0;background:#fff;color:var(--ink);
-              font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-            }
-            #ticket{
-              background:#fff;border:1px dashed #999;border-radius:10px;
-              padding:6px;max-width:80mm;margin:0 auto;
-            }
-            #ticket h3{margin:0 0 4px;text-align:center;font-size:14px}
-            #ticket .meta{font-size:11px;margin-bottom:4px}
-            #ticket .obs-block{margin-top:2px;white-space:pre-wrap}
-            #ticket table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
-            #ticket th,#ticket td{padding:2px 1px;border-bottom:1px dashed #ddd;word-wrap:break-word}
-            .right{text-align:right}
-            @media print{
-              @page{ size: 80mm auto; margin: 0mm; }
-              body{background:#fff}
-              #ticket{ width:80mm;max-width:80mm;margin:0;padding:2mm;border:none; }
-              tr, td, th, table{ page-break-inside: avoid; break-inside: avoid; }
-            }
-          </style>
-        </head>
-        <body>
-          <div id="ticket">
-            <h3>${STORE_NAME}</h3>
-            <div class="meta">
-              Nota a crédito<br/>
-              Cliente: ${cliente}<br/>
-              Folio: ${nota.folio}<br/>
-              Fecha: ${nota.fecha}<br/>
-              <div class="obs-block">Obs: ${obs}</div>
-            </div>
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8" />
+      <title>Ticket 80mm</title>
+      <style>
+        :root{--ink:#111}
+        *{box-sizing:border-box}
+        body{
+          margin:0;background:#fff;color:var(--ink);
+          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
 
-            <table>
-              <thead><tr><th>Prod</th><th class="right">Kg/Pzas</th></tr></thead>
-              <tbody>${filas}</tbody>
-            </table>
+        /* ✅ Contenedor */
+        #ticket{
+          background:#fff;border:1px dashed #999;border-radius:10px;
+          padding:8px;max-width:80mm;margin:0 auto;
+        }
 
-            <div style="margin-top:6px;text-align:center;font-size:11px">
-              ¡Gracias por su preferencia! ¡Carnes y Vísceras del Centro tu mejor aliado!
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
+        /* ✅ Título más grande y en negritas */
+        #ticket h3{
+          margin:0 0 6px;
+          text-align:center;
+          font-size:18px;
+          font-weight:900;
+          letter-spacing:.2px;
+        }
 
-      const win = window.open('', '_blank', 'width=420,height=700');
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-      setTimeout(()=>{ win.print(); }, 300);
-    }
+        /* ✅ Meta más grande (cliente/folio/fecha/obs) */
+        #ticket .meta{
+          font-size:14px;
+          line-height:1.25;
+          margin-bottom:6px;
+          font-weight:700;
+        }
 
+        #ticket .obs-block{
+          margin-top:6px;
+          white-space:pre-wrap;
+          font-weight:700;
+        }
+
+        /* ✅ Tabla más grande */
+        #ticket table{
+          width:100%;
+          border-collapse:collapse;
+          font-size:14px;
+          table-layout:fixed;
+        }
+
+        /* ✅ Encabezados en negritas */
+        #ticket thead th{
+          font-weight:900;
+          border-bottom:2px dashed #000;
+          padding:4px 1px;
+        }
+
+        #ticket th,#ticket td{
+          padding:4px 1px;
+          border-bottom:1px dashed #ddd;
+          word-wrap:break-word;
+          vertical-align:top;
+        }
+
+        /* ✅ Filas: producto y cantidad en negritas y un poquito más grande */
+        #ticket td.prod{ font-weight:900; font-size:15px; }
+        #ticket td.cant{ font-weight:900; font-size:15px; }
+
+        .right{text-align:right}
+
+        /* ✅ Footer más grande y bold */
+        .thanks{
+          margin-top:10px;
+          text-align:center;
+          font-size:13px;
+          font-weight:900;
+          line-height:1.25;
+        }
+
+        @media print{
+          @page{ size: 80mm auto; margin: 0mm; }
+          body{background:#fff}
+          #ticket{
+            width:80mm;max-width:80mm;margin:0;
+            padding:3mm;border:none;border-radius:0;
+          }
+          tr, td, th, table{ page-break-inside: avoid; break-inside: avoid; }
+        }
+      </style>
+    </head>
+    <body>
+      <div id="ticket">
+        <h3>${STORE_NAME}</h3>
+
+        <div class="meta">
+          NOTA A CRÉDITO<br/>
+          Cliente: ${cliente}<br/>
+          Folio: ${nota.folio}<br/>
+          Fecha: ${nota.fecha}<br/>
+          <div class="obs-block">Obs: ${obs}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>PROD</th>
+              <th class="right">KG/PZAS</th>
+            </tr>
+          </thead>
+          <tbody>${filas}</tbody>
+        </table>
+
+        <div class="thanks">
+          ¡Gracias por su preferencia!<br/>
+          ¡Carnes y Vísceras del Centro tu mejor aliado!
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const win = window.open('', '_blank', 'width=420,height=700');
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+
+  setTimeout(()=>{ win.print(); }, 300);
+}
     /* ========================= REPORTE DIARIO GENERAL ========================= */
     async function imprimirDiaA4(){
       const f = diaFecha.value || todayISO();
