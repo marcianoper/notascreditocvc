@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -38,7 +37,6 @@
     .btn-sm{padding:4px 8px;font-size:12px}
     .cell-editing input{width:100%;padding:6px;font-size:14px}
 
-    /* ====== IMPRESIÓN GENERAL (nota individual / ticket80 usando #printArea) ====== */
     @media print{
       body *{visibility:hidden}
       #printArea, #printArea *{visibility:visible}
@@ -54,7 +52,6 @@
       #printArea:not(.ticket80) th,
       #printArea:not(.ticket80) td{ border:1px solid #aaa; padding:3px 4px; font-size:11px; }
 
-      /* Ticket 80mm */
       #printArea.ticket80{width:80mm; padding:2mm}
       #printArea.ticket80 .tk-header{ text-align:center; font-size:12px; line-height:1.2; margin-bottom:6px }
       #printArea.ticket80 .tk-header .store{ font-weight:700; font-size:14px }
@@ -71,13 +68,6 @@
       #printArea.ticket80 .thanks{ text-align:center; margin-top:8px; font-size:11px }
     }
 
-    /* ===========================
-       ✅ BANDEJA COMPACTA (SIN SCROLL INFINITO)
-       - contenedor con scroll interno
-       - header sticky
-       - buscador
-       - menú de acciones dropdown
-    =========================== */
     .bandejaWrap{
       max-height: 55vh;
       overflow:auto;
@@ -169,7 +159,6 @@
   </header>
 
   <main>
-    <!-- SLOTS A/B -->
     <section class="card">
       <h2>🧭 Trabajo en paralelo (2 clientes)</h2>
       <div class="slotbar">
@@ -186,7 +175,6 @@
       </div>
     </section>
 
-    <!-- CONTROLES (slot activo) -->
     <section class="card">
       <h2>🧾 Nota (Slot activo)</h2>
 
@@ -246,11 +234,9 @@
     </section>
 
     <div class="grid-2">
-      <!-- CAPTURA -->
       <section class="card">
         <h2>🧺 Capturar partidas</h2>
 
-        <!-- ===== MODO NORMAL (todos los clientes) ===== -->
         <div id="capNormal">
           <div class="row-3">
             <div>
@@ -262,7 +248,6 @@
               <label>Kilos</label>
               <input id="pKg" type="number" min="0" step="0.01" value="1" />
 
-              <!-- ✅ BÁSCULA (Realtime entre dispositivos vía Supabase) -->
               <div class="flex" style="margin-top:8px; gap:8px">
                 <button type="button" class="btn btn-ghost" id="btnPeso">📥 Tomar peso</button>
 
@@ -305,9 +290,7 @@
           </div>
         </div>
 
-        <!-- ===== MODO Pieles y Grasas (solo ese cliente) ===== -->
         <div id="capPG" style="display:none">
-          <!-- SEBO -->
           <div class="row-3">
             <div>
               <label>Producto</label>
@@ -330,7 +313,6 @@
 
           <hr style="border:none;border-top:1px solid #eef0f2;margin:14px 0" />
 
-          <!-- HUESO -->
           <div class="row-3">
             <div>
               <label>Producto</label>
@@ -355,7 +337,6 @@
         <textarea id="notaObs" rows="2" placeholder="Instrucciones, cortes, etc."></textarea>
       </section>
 
-      <!-- VISTA EN VIVO -->
       <section class="card">
         <h2>👤 Vista del cliente (slot activo)</h2>
 
@@ -388,7 +369,6 @@
       </section>
     </div>
 
-    <!-- ✅ BANDEJA (COMPACTA + BUSCADOR + ACCIONES DROPDOWN + SCROLL INTERNO) -->
     <section class="card">
       <h2>📥 Notas abiertas hoy (todas)</h2>
 
@@ -427,7 +407,6 @@
       </div>
     </section>
 
-    <!-- REPORTE DIARIO GENERAL -->
     <section class="card">
       <h2>📄 Reporte diario GENERAL (todos los clientes)</h2>
 
@@ -448,7 +427,6 @@
       </div>
     </section>
 
-    <!-- ACCIONES NOTA -->
     <section class="card">
       <div class="flex">
         <button class="btn btn-ghost" id="btnWA" type="button">WhatsApp Cuenta</button>
@@ -463,27 +441,18 @@
   <div id="printArea" style="display:none"></div>
   <datalist id="catProductos"></datalist>
 
-  <!-- ✅ UNA sola carga UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    /* ========================= CONFIG ========================= */
     const SUPABASE_URL = "https://bjebybdqcqscouxlinfd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqZWJ5YmRxY3FzY291eGxpbmZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMjQ3MTksImV4cCI6MjA3MTkwMDcxOX0.mQgWtiYEyJTiF04pdcLv63SqPNrU1Iehws0vKqr82O0";
 
-    // ✅ Cliente Supabase “blindado”
     const sb = window.__sb || (window.__sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
 
     const STORE_NAME = "Carnes y Vísceras del Centro";
-
-    // ✅ Pesos fijos por caja
     const CAJA_KG = 27.22;
 
-    /* ========================= BÁSCULA — REALTIME ENTRE DISPOSITIVOS (SUPABASE) =========================
-      Requiere tabla: bascula_live(id PK text, peso numeric, updated_at timestamptz)
-      Windows (python) hace UPSERT a id='torrey_1'
-    =============================================================================================== */
-    const BASCULA_ID = "torrey_1";     // ✅ tu única báscula
+    const BASCULA_ID = "torrey_1";
     const BASCULA_TABLE = "bascula_live";
 
     const btnPeso = document.getElementById("btnPeso");
@@ -612,7 +581,6 @@
         return;
       }
 
-      // ✅ Realtime Supabase
       basculaChannel = sb
         .channel(`bascula-${BASCULA_ID}`)
         .on(
@@ -655,7 +623,6 @@
     rtModo?.addEventListener("change", ()=> { if(rtBascula?.checked) startBasculaRealtime(); });
     rtMs?.addEventListener("change", ()=> { if(rtBascula?.checked) startBasculaRealtime(); });
 
-    /* ========================= UTILS ========================= */
     const $ = s => document.querySelector(s);
     const $$ = s => Array.from(document.querySelectorAll(s));
     const to2 = n => Number(n || 0).toFixed(2);
@@ -682,7 +649,6 @@
       return (s || '').toString().trim().toLowerCase();
     }
 
-    /* === Observaciones automáticas por producto (suma kg/pzas) === */
     function buildAutoObsFromDetalle(det){
       if(!det || !det.length) return '';
       const grupos = {};
@@ -709,7 +675,6 @@
       return lineas.join('\n');
     }
 
-    /* ========================= STATE ========================= */
     let CLIENTES = [], PRODUCTOS = [], PRECIOS = {};
     let slotActive = 'A';
     let notaA = null, notaB = null;
@@ -720,13 +685,11 @@
       B:{cliente_id:null, telefono:null}
     };
 
-    /* ===== Protector de salida ===== */
     let exitGuardEnabled = JSON.parse(localStorage.getItem('exitGuardEnabled') || 'true');
     let isDirty = false;
     function markDirty(){ if(exitGuardEnabled) isDirty = true; }
     function clearDirty(){ isDirty = false; }
 
-    /* ========================= REFS ========================= */
     const exitGuardToggle = $('#exitGuardToggle');
     const slotABtn = $('#slotA'), slotBBtn = $('#slotB');
     const slotALabel = $('#slotALabel'), slotBLabel = $('#slotBLabel');
@@ -740,7 +703,6 @@
     const notaVence = $('#notaVence');
     const notaInfo = $('#notaInfo');
 
-    // CAPTURA NORMAL
     const capNormal = $('#capNormal');
     const pProducto = $('#pProducto');
     const pKg = $('#pKg');
@@ -748,7 +710,6 @@
     const pPrecio = $('#pPrecio');
     const subtotalBox = $('#subtotalBox');
 
-    // CAPTURA Pieles y Grasas
     const capPG = $('#capPG');
     const seboKg = $('#seboKg');
     const seboPzas = $('#seboPzas');
@@ -763,7 +724,7 @@
     const vistaTotal = $('#vistaTotal');
 
     const bandejaFecha = $('#bandejaFecha');
-    const bandejaBuscar = $('#bandejaBuscar');   // ✅ NUEVO buscador
+    const bandejaBuscar = $('#bandejaBuscar');
     const bandejaBody = $('#bandejaBody');
 
     const diaFecha = $('#diaFecha');
@@ -771,7 +732,6 @@
 
     const notaObs = $('#notaObs');
 
-    /* ========================= INIT ========================= */
     notaFecha.value = todayISO();
     notaVence.value = addDays(notaFecha.value, notaDias.value);
     bandejaFecha.value = todayISO();
@@ -794,7 +754,6 @@
     notaDias.addEventListener('change', ()=>{ notaVence.value = addDays(notaFecha.value, notaDias.value); });
     notaFecha.addEventListener('change', ()=>{ notaVence.value = addDays(notaFecha.value, notaDias.value); });
 
-    // ===== Auto precio + Auto kilos para cajas =====
     ['keyup','change'].forEach(ev=> pProducto.addEventListener(ev, ()=>{
       prefPrecio();
       autoKgFromCaja();
@@ -811,7 +770,6 @@
 
     notaObs.addEventListener('blur', saveNotaObs);
 
-    // Botones
     $('#btnContinuar').addEventListener('click', continuarNota);
     $('#btnAgregar').addEventListener('click', addPartida);
 
@@ -828,23 +786,20 @@
     $('#btnDiaA4').addEventListener('click', imprimirDiaA4);
     $('#btnDiaCSV').addEventListener('click', exportDiaCSV);
 
-    // ✅ buscador en vivo
     bandejaBuscar?.addEventListener('input', ()=> loadBandeja());
 
-    // ✅ cerrar dropdown si click fuera
     document.addEventListener('click', (e)=>{
       const inside = e.target.closest?.('details.actionMenu');
       if(!inside) cerrarTodosLosMenus();
     });
 
-    // Cambios de cliente/teléfono ligados al slot activo
     cliSelect.addEventListener('change', ()=>{
       slotState[slotActive].cliente_id = cliSelect.value || null;
       const c = getClient(slotState[slotActive].cliente_id);
       cliTelefono.value = c ? (c.telefono || '') : '';
       slotState[slotActive].telefono = cliTelefono.value || null;
 
-      updateCaptureMode(); // ✅ activar modo PG si aplica
+      updateCaptureMode();
     });
 
     cliTelefono.addEventListener('blur', async ()=>{ await saveClientPhone(); });
@@ -852,13 +807,11 @@
     slotABtn.onclick = ()=> setActiveSlot('A');
     slotBBtn.onclick = ()=> setActiveSlot('B');
 
-    // ✅ Enter inteligente: modo normal vs modo Pieles y Grasas
     document.addEventListener('keydown', (e)=>{
       if(e.key !== 'Enter') return;
 
       const id = document.activeElement?.id || '';
 
-      // Modo Pieles y Grasas
       if(isPielesYGrasasSelected()){
         if(['seboKg','seboPzas'].includes(id)){
           e.preventDefault();
@@ -873,7 +826,6 @@
         return;
       }
 
-      // Modo normal
       if(['pProducto','pKg','pPzas','pPrecio'].includes(id)){
         e.preventDefault();
         addPartida();
@@ -894,7 +846,6 @@
       updateCaptureMode();
     });
 
-    /* ========================= HELPERS ========================= */
     function getClient(id){ return (CLIENTES||[]).find(c=> String(c.id)===String(id)); }
     function getClientName(id){ return getClient(id)?.nombre || ''; }
 
@@ -942,7 +893,6 @@
       updateCaptureMode();
     }
 
-    /* ========================= MODO Pieles y Grasas ========================= */
     function isPielesYGrasasSelected(){
       const cid = cliSelect.value;
       const c = getClient(cid);
@@ -963,7 +913,6 @@
       }
     }
 
-    /* ========================= CATÁLOGOS ========================= */
     async function loadClientes(){
       const { data, error } = await sb
         .from('clientes')
@@ -1009,7 +958,6 @@
       if(PRECIOS[n]) pPrecio.value = PRECIOS[n];
     }
 
-    /* ========================= AUTO-KG PARA CAJAS (27.22) ========================= */
     function isCajaMenudoTarget(prodName){
       const n = normalizeName(prodName);
       return (
@@ -1031,7 +979,6 @@
       pKg.value = to2(kg);
     }
 
-    /* ========================= GUARDAR TELÉFONO ========================= */
     async function saveClientPhone(){
       const cid = slotState[slotActive].cliente_id || activeNota()?.cliente_id;
       if(!cid) return;
@@ -1047,7 +994,6 @@
       }
     }
 
-    /* ========================= GUARDAR OBSERVACIONES ========================= */
     async function saveNotaObs(){
       const n = activeNota();
       if(!n) return;
@@ -1060,7 +1006,6 @@
       }
     }
 
-    /* ========================= CREAR/CONTINUAR NOTA ========================= */
     async function continuarNota(){
       const cliente_id = slotState[slotActive].cliente_id || cliSelect.value;
       if(!cliente_id) return alert('Selecciona cliente');
@@ -1104,7 +1049,6 @@
       updateCaptureMode();
     }
 
-    /* ========================= NUEVO CLIENTE ========================= */
     async function addCliente(){
       const nombre = prompt('Nombre del cliente:');
       if(!nombre || !nombre.trim()) return;
@@ -1136,7 +1080,6 @@
       alert('✅ Cliente creado');
     }
 
-    /* ========================= INSERTAR PARTIDA (NORMAL) ========================= */
     async function addPartida(){
       const nota = activeNota();
       if(!nota) return alert('Primero crea/continúa una nota en el slot activo');
@@ -1173,7 +1116,6 @@
       pProducto.focus();
     }
 
-    /* ========================= INSERTAR PARTIDA (Pieles y Grasas) ========================= */
     async function addFixedPartidaPG(productoNombre, kgVal, pzasVal){
       const nota = activeNota();
       if(!nota) return alert('Primero crea/continúa una nota en el slot activo');
@@ -1231,7 +1173,6 @@
       await loadBandeja();
     }
 
-    /* ========================= VISTA (SLOT ACTIVO) ========================= */
     async function renderVista(){
       const n = activeNota();
 
@@ -1396,7 +1337,6 @@
       await recalcNota(n.id);
     }
 
-    /* ========================= REALTIME (NOTAS) ========================= */
     function subRealtime(slot){
       const nota = slot==='A' ? notaA : notaB;
       if(!nota) return;
@@ -1419,7 +1359,6 @@
       if(slot==='A') chA=ch; else chB=ch;
     }
 
-    /* ========================= BANDEJA (COMPACTA) ========================= */
     function cerrarTodosLosMenus(){
       document.querySelectorAll('details.actionMenu[open]').forEach(d=> d.open = false);
     }
@@ -1443,7 +1382,6 @@
 
       let rows = data || [];
 
-      // ✅ filtro local por folio o cliente
       if(q){
         rows = rows.filter(r=>{
           const fol = (r.folio||'').toLowerCase();
@@ -1474,7 +1412,6 @@
         </tr>
       `).join('');
 
-      // handlers
       bandejaBody.querySelectorAll('[data-usea]').forEach(b=> b.onclick = ()=>{
         cerrarTodosLosMenus();
         cargarEnSlot('A', b.dataset.usea, b.dataset.cid);
@@ -1519,7 +1456,6 @@
       setActiveSlot(slot);
     }
 
-    /* ========================= WHATSAPP / A4 / CSV / 80mm ========================= */
     function plantillaWA(nota, det, clienteNombre){
       const items = (det||[]).map(d=>{
         const piezasTxt = d.piezas ? ` (${d.piezas} pzas)` : '';
@@ -1632,193 +1568,186 @@
       setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
     }
 
-   async function imprimirNota80mm(nota_id){
-  await saveNotaObs();
+    async function imprimirNota80mm(nota_id){
+      await saveNotaObs();
 
-  const { data: nota } = await sb
-    .from('notas_credito')
-    .select('*, clientes(nombre)')
-    .eq('id', nota_id)
-    .single();
+      const { data: nota } = await sb
+        .from('notas_credito')
+        .select('*, clientes(nombre)')
+        .eq('id', nota_id)
+        .single();
 
-  const { data: det } = await sb
-    .from('notas_detalle')
-    .select('*')
-    .eq('nota_id', nota_id)
-    .order('created_at');
+      const { data: det } = await sb
+        .from('notas_detalle')
+        .select('*')
+        .eq('nota_id', nota_id)
+        .order('created_at');
 
-  const cliente = nota.clientes?.nombre || '(sin nombre)';
-  const obs = nota.observaciones || '—';
+      const cliente = nota.clientes?.nombre || '(sin nombre)';
+      const obs = nota.observaciones || '—';
 
-  const filas = (det || []).map(d=>{
-    const cantidadTexto = d.piezas ? `${to2(d.cantidad)} (${d.piezas}pz)` : to2(d.cantidad);
-    return `
-      <tr>
-        <td class="prod">${d.producto}</td>
-        <td class="right cant">${cantidadTexto}</td>
-      </tr>
-    `;
-  }).join('');
+      const filas = (det || []).map(d=>{
+        const cantidadTexto = d.piezas ? `${to2(d.cantidad)} (${d.piezas}pz)` : to2(d.cantidad);
+        return `
+          <tr>
+            <td class="prod">${d.producto}</td>
+            <td class="right cant">${cantidadTexto}</td>
+          </tr>
+        `;
+      }).join('');
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="utf-8" />
-      <title>Ticket 80mm</title>
-     <style>
-  :root{--ink:#000}
-  *{box-sizing:border-box}
+      const html = `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="utf-8" />
+          <title>Ticket 80mm</title>
+         <style>
+      :root{--ink:#000}
+      *{box-sizing:border-box}
 
-  body{
-    margin:0;
-    background:#fff;
-    color:var(--ink);
-    font-family: Arial, Helvetica, sans-serif;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+      body{
+        margin:0;
+        background:#fff;
+        color:var(--ink);
+        font-family: Arial, Helvetica, sans-serif;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
 
-  #ticket{
-    background:#fff;
-    padding:6px;
-    max-width:80mm;
-    margin:0 auto;
-  }
+      #ticket{
+        background:#fff;
+        padding:6px;
+        max-width:80mm;
+        margin:0 auto;
+      }
 
-  /* Título principal */
-  #ticket h3{
-    margin:0 0 6px;
-    text-align:center;
-    font-size:16px;
-    font-weight:700;
-  }
+      #ticket h3{
+        margin:0 0 6px;
+        text-align:center;
+        font-size:16px;
+        font-weight:700;
+      }
 
-  /* Datos */
-  #ticket .meta{
-    font-size:16px;
-    line-height:1.3;
-    margin-bottom:6px;
-    font-weight:600;
-  }
+      #ticket .meta{
+        font-size:16px;
+        line-height:1.3;
+        margin-bottom:6px;
+        font-weight:600;
+      }
 
-  #ticket .obs-block{
-    margin-top:4px;
-    white-space:pre-wrap;
-    font-weight:600;
-  }
+      #ticket .obs-block{
+        margin-top:4px;
+        white-space:pre-wrap;
+        font-weight:600;
+      }
 
-  /* Tabla */
-  #ticket table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:10px;
-    table-layout:fixed;
-  }
+      #ticket table{
+        width:100%;
+        border-collapse:collapse;
+        font-size:10px;
+        table-layout:fixed;
+      }
 
-  /* Encabezado */
-  #ticket thead th{
-    font-weight:700;
-    border-bottom:2px solid #000;
-    padding:5px 2px;
-  }
+      #ticket thead th{
+        font-weight:700;
+        border-bottom:2px solid #000;
+        padding:5px 2px;
+      }
 
-  #ticket th,#ticket td{
-    padding:5px 2px;
-    word-wrap:break-word;
-    vertical-align:top;
-  }
+      #ticket th,#ticket td{
+        padding:5px 2px;
+        word-wrap:break-word;
+        vertical-align:top;
+      }
 
-  /* 🔥 Línea marcada entre productos */
-  #ticket tbody tr{
-    border-bottom:2px solid #000;
-  }
+      #ticket tbody tr{
+        border-bottom:2px solid #000;
+      }
 
-  #ticket td.prod{
-    font-weight:600;
-    font-size:16px;
-  }
+      #ticket td.prod{
+        font-weight:600;
+        font-size:16px;
+      }
 
-  #ticket td.cant{
-    font-weight:700;
-    font-size:16px;
-  }
+      #ticket td.cant{
+        font-weight:700;
+        font-size:16px;
+      }
 
-  .right{text-align:right}
+      .right{text-align:right}
 
-  /* Footer */
-  .thanks{
-    margin-top:10px;
-    text-align:center;
-    font-size:12.5px;
-    font-weight:600;
-    line-height:1.3;
-  }
+      .thanks{
+        margin-top:10px;
+        text-align:center;
+        font-size:12.5px;
+        font-weight:600;
+        line-height:1.3;
+      }
 
-  @media print{
-    @page{ size: 80mm auto; margin: 0mm; }
-    #ticket{
-      width:80mm;
-      max-width:80mm;
-      margin:0;
-      padding:3mm;
-    }
-  }
-  .logo{
-  text-align:center;
-  margin-bottom:6px;
-}
+      @media print{
+        @page{ size: 80mm auto; margin: 0mm; }
+        #ticket{
+          width:80mm;
+          max-width:80mm;
+          margin:0;
+          padding:3mm;
+        }
+      }
+      .logo{
+        text-align:center;
+        margin-bottom:6px;
+      }
 
-.logo img{
-  width:80mm;      /* Ajusta aquí el tamaño */
-  height:auto;
-}
-  
-</style>
-    </head>
-    <body>
-      <div id="ticket">
-      <div class="logo">
-    <img src="logo.png" alt="Logo">
-  </div>
-        <h3>${STORE_NAME}</h3>
-
-        <div class="meta">
-          NOTA A CRÉDITO<br/>
-          Cliente: ${cliente}<br/>
-          Folio: ${nota.folio}<br/>
-          Fecha: ${nota.fecha}<br/>
-          <div class="obs-block"> ${obs}</div>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>PROD</th>
-              <th class="right">KG/PZAS</th>
-            </tr>
-          </thead>
-          <tbody>${filas}</tbody>
-        </table>
-
-        <div class="thanks">
-          ¡Gracias por su preferencia!<br/>
-          ¡Carnes y Vísceras del Centro tu mejor aliado!
-        </div>
+      .logo img{
+        width:80mm;
+        height:auto;
+      }
+      </style>
+        </head>
+        <body>
+          <div id="ticket">
+          <div class="logo">
+        <img src="logo.png" alt="Logo">
       </div>
-    </body>
-    </html>
-  `;
+            <h3>${STORE_NAME}</h3>
 
-  const win = window.open('', '_blank', 'width=420,height=700');
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
+            <div class="meta">
+              NOTA A CRÉDITO<br/>
+              Cliente: ${cliente}<br/>
+              Folio: ${nota.folio}<br/>
+              Fecha: ${nota.fecha}<br/>
+              <div class="obs-block"> ${obs}</div>
+            </div>
 
-  setTimeout(()=>{ win.print(); }, 300);
-}
-    /* ========================= REPORTE DIARIO GENERAL ========================= */
+            <table>
+              <thead>
+                <tr>
+                  <th>PROD</th>
+                  <th class="right">KG/PZAS</th>
+                </tr>
+              </thead>
+              <tbody>${filas}</tbody>
+            </table>
+
+            <div class="thanks">
+              ¡Gracias por su preferencia!<br/>
+              ¡Carnes y Vísceras del Centro tu mejor aliado!
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const win = window.open('', '_blank', 'width=420,height=700');
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+
+      setTimeout(()=>{ win.print(); }, 300);
+    }
+
     async function imprimirDiaA4(){
       const f = diaFecha.value || todayISO();
 
@@ -1829,7 +1758,10 @@
         .order('created_at');
 
       const ids = (notas || []).map(n => n.id);
-      if(!ids.length){ alert('No hay notas ese día'); return; }
+      if(!ids.length){
+        alert('No hay notas ese día');
+        return;
+      }
 
       const { data: det } = await sb
         .from('notas_detalle')
@@ -1837,29 +1769,63 @@
         .in('nota_id', ids)
         .order('created_at');
 
+      const detalles = det || [];
+
       const byClient = {};
       (notas || []).forEach(n=>{
         const c = n.clientes?.nombre || '—';
         if(!byClient[c]) byClient[c] = { items: [], totalImporte: 0 };
       });
 
-      (det || []).forEach(d=>{
+      detalles.forEach(d=>{
         const nota = (notas || []).find(x => x.id === d.nota_id);
         const cliente = nota?.clientes?.nombre || '—';
+
         if(!byClient[cliente]) byClient[cliente] = { items: [], totalImporte: 0 };
+
         byClient[cliente].items.push({
           folio: nota?.folio || '',
           created_at: d.created_at,
           producto: d.producto,
-          cantidad: d.cantidad,
+          cantidad: Number(d.cantidad || 0),
           piezas: d.piezas,
-          importe: d.importe
+          importe: Number(d.importe || 0)
         });
+
         byClient[cliente].totalImporte += Number(d.importe || 0);
       });
 
-      const totalDia = (det || []).reduce((a, b) => a + Number(b.importe || 0), 0);
-      diaResumen.textContent = `Clientes: ${Object.keys(byClient).length} · Total día: $${to2(totalDia)}`;
+      const resumenProductos = {};
+
+      detalles.forEach(d=>{
+        const prod = d.producto || 'Sin producto';
+
+        if(!resumenProductos[prod]){
+          resumenProductos[prod] = {
+            kg: 0,
+            pzas: 0,
+            tienePzas: false,
+            importe: 0
+          };
+        }
+
+        resumenProductos[prod].kg += Number(d.cantidad || 0);
+        resumenProductos[prod].importe += Number(d.importe || 0);
+
+        if(d.piezas != null && d.piezas !== ''){
+          resumenProductos[prod].pzas += Number(d.piezas || 0);
+          resumenProductos[prod].tienePzas = true;
+        }
+      });
+
+      const resumenOrdenado = Object.entries(resumenProductos)
+        .sort((a,b)=> a[0].localeCompare(b[0], 'es'));
+
+      const totalDia = detalles.reduce((a, b) => a + Number(b.importe || 0), 0);
+      const totalKgDia = detalles.reduce((a, b) => a + Number(b.cantidad || 0), 0);
+
+      diaResumen.textContent =
+        `Clientes: ${Object.keys(byClient).length} · Kg totales: ${to2(totalKgDia)} · Total día: $${to2(totalDia)}`;
 
       let html = `
         <!DOCTYPE html>
@@ -1869,35 +1835,163 @@
           <title>Reporte diario</title>
           <style>
             @page { size: letter landscape; margin: 8mm; }
-            body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 11px; margin: 0; }
-            h3 { margin: 0 0 4mm 0; font-size: 14px; }
-            h4 { margin: 2mm 0 1mm 0; font-size: 11px; }
-            .subinfo { font-size: 10px; margin-bottom: 3mm; }
-            #columns { column-count: 2; column-gap: 5mm; }
-            .client-group { break-inside: avoid; page-break-inside: avoid; margin-bottom: 3mm; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ccc; padding: 2px 3px; font-size: 9.5px; text-align: left; }
-            th { background: #f3f3f3; }
+
+            body {
+              font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+              font-size: 11px;
+              margin: 0;
+              color: #111;
+            }
+
+            h3 {
+              margin: 0 0 3mm 0;
+              font-size: 15px;
+            }
+
+            h4 {
+              margin: 3mm 0 1.5mm 0;
+              font-size: 11px;
+            }
+
+            .subinfo {
+              font-size: 10px;
+              margin-bottom: 3mm;
+            }
+
+            .section {
+              margin-bottom: 5mm;
+            }
+
+            .summary-box {
+              border: 1px solid #bbb;
+              padding: 3mm;
+              border-radius: 3mm;
+              margin-bottom: 4mm;
+              background: #fafafa;
+            }
+
+            #columns {
+              column-count: 2;
+              column-gap: 5mm;
+            }
+
+            .client-group {
+              break-inside: avoid;
+              page-break-inside: avoid;
+              margin-bottom: 3mm;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+
+            th, td {
+              border: 1px solid #ccc;
+              padding: 2px 3px;
+              font-size: 9.5px;
+              text-align: left;
+              vertical-align: top;
+            }
+
+            th {
+              background: #f3f3f3;
+            }
+
+            .ta-right {
+              text-align: right;
+            }
+
+            .small {
+              font-size: 9px;
+              color: #555;
+            }
           </style>
         </head>
         <body>
           <h3>Reporte diario — ${f}</h3>
-          <div class="subinfo">Clientes: ${Object.keys(byClient).length} · Total día: $${to2(totalDia)}</div>
-          <div id="columns">
+
+          <div class="subinfo">
+            Clientes: ${Object.keys(byClient).length}
+            &nbsp; · &nbsp;
+            Kg totales del día: ${to2(totalKgDia)}
+            &nbsp; · &nbsp;
+            Total día: $${to2(totalDia)}
+          </div>
+
+          <div class="section summary-box">
+            <h4>Resumen general por producto</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="ta-right">Kg totales</th>
+                  <th class="ta-right">Pzas totales</th>
+                  <th class="ta-right">Importe total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${resumenOrdenado.map(([prod, r])=>`
+                  <tr>
+                    <td>${prod}</td>
+                    <td class="ta-right">${to2(r.kg)}</td>
+                    <td class="ta-right">${r.tienePzas ? Math.round(r.pzas) : ''}</td>
+                    <td class="ta-right">$${to2(r.importe)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section">
+            <h4>Detalle por cliente</h4>
+            <div id="columns">
       `;
 
       Object.entries(byClient).forEach(([cliente, pack])=>{
+        const resumenCliente = {};
+        const nombreOriginal = {};
+
+        (pack.items || []).forEach(d=>{
+          const prodOriginal = (d.producto || 'Sin producto').trim();
+          const prodKey = prodOriginal.toLowerCase();
+
+          if(!resumenCliente[prodKey]){
+            resumenCliente[prodKey] = 0;
+            nombreOriginal[prodKey] = prodOriginal;
+          }
+
+          resumenCliente[prodKey] += Number(d.cantidad || 0);
+        });
+
+        const resumenClienteOrdenado = Object.entries(resumenCliente)
+          .sort((a,b)=> nombreOriginal[a[0]].localeCompare(nombreOriginal[b[0]], 'es'));
+
+        const kgTotalCliente = (pack.items || []).reduce((acc, d)=> acc + Number(d.cantidad || 0), 0);
+
         html += `
           <div class="client-group">
             <h4>${cliente} — Total: $${to2(pack.totalImporte)}</h4>
+
+            <div class="small" style="margin-bottom:2mm;">
+              Kg totales del cliente: <b>${to2(kgTotalCliente)}</b>
+            </div>
+
+            <div style="margin-bottom:2mm; padding:2mm; border:1px solid #ccc; background:#fafafa;">
+              <div style="font-weight:700; margin-bottom:1.5mm;">Totales por producto</div>
+              ${resumenClienteOrdenado.map(([prodKey, totalKg])=>`
+                <div><b>Total ${nombreOriginal[prodKey]}</b> = ${to2(totalKg)} kg</div>
+              `).join('')}
+            </div>
+
             <table>
               <thead>
                 <tr>
                   <th>Folio</th>
                   <th>Hora</th>
                   <th>Producto</th>
-                  <th>Kg</th>
-                  <th>Pzas</th>
+                  <th class="ta-right">Kg</th>
+                  <th class="ta-right">Pzas</th>
                 </tr>
               </thead>
               <tbody>
@@ -1906,8 +2000,8 @@
                     <td>${d.folio}</td>
                     <td>${new Date(d.created_at).toLocaleTimeString()}</td>
                     <td>${d.producto}</td>
-                    <td>${to2(d.cantidad)}</td>
-                    <td>${d.piezas != null ? d.piezas : ''}</td>
+                    <td class="ta-right">${to2(d.cantidad)}</td>
+                    <td class="ta-right">${d.piezas != null ? d.piezas : ''}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -1917,6 +2011,7 @@
       });
 
       html += `
+            </div>
           </div>
         </body>
         </html>
@@ -1927,6 +2022,7 @@
       win.document.write(html);
       win.document.close();
       win.focus();
+
       setTimeout(() => { win.print(); }, 400);
     }
 
@@ -2044,4 +2140,3 @@
   </script>
 </body>
 </html>
-```
