@@ -37,14 +37,6 @@
     .btn-sm{padding:4px 8px;font-size:12px}
     .cell-editing input{width:100%;padding:6px;font-size:14px}
 
-    .qrbox{
-      border:1px solid #e5e7eb;
-      border-radius:12px;
-      overflow:hidden;
-      min-height:180px;
-      background:#fafafa;
-      margin-top:10px;
-    }
     .helperBadges{
       display:flex;
       gap:8px;
@@ -217,6 +209,7 @@
           <label>Cliente</label>
           <div class="flex" style="gap:6px; align-items:stretch">
             <select id="cliSelect"></select>
+            <button class="btn btn-ghost" id="btnAbrirVentaBodega" type="button">Abrir Venta Bodega</button>
             <button class="btn btn-ghost" id="btnNuevoCliente" type="button">+ Cliente</button>
           </div>
         </div>
@@ -326,23 +319,19 @@
 
         <div id="capVentaBodega" style="display:none">
           <div class="warnBox">
-            Cliente especial detectado: <b>VENTA BODEGA</b>.  
-            Aquí no capturas producto a mano: escaneas el ticket QR y las partidas se agregan solas a la nota activa.
+            Cliente especial detectado: <b>Venta Bodega</b>.  
+            Aquí no capturas producto a mano: subes la foto del ticket QR o pegas el contenido y las partidas se agregan solas a la nota activa.
           </div>
 
           <div class="helperBadges">
-            <span class="pill">📷 Cámara</span>
             <span class="pill">🖼️ Foto QR</span>
             <span class="pill">⌨️ Pegar contenido</span>
           </div>
 
           <div class="flex" style="margin-top:10px">
-            <button type="button" class="btn btn-primary" id="vbToggleCam">Iniciar cámara</button>
             <button type="button" class="btn btn-ghost" id="vbProcesarManual">Procesar contenido</button>
             <button type="button" class="btn btn-ghost" id="vbLimpiar">Limpiar</button>
           </div>
-
-          <div id="vbReader" class="qrbox"></div>
 
           <label class="btn btn-ghost" for="vbFile" style="display:block;text-align:center;margin-top:10px;cursor:pointer">
             Subir foto del QR
@@ -701,18 +690,23 @@
       const z = d.getTimezoneOffset() * 60000;
       return new Date(d - z).toISOString().slice(0,10);
     }
+
     function addDays(dateISO, days){
       const d = new Date(dateISO);
       d.setDate(d.getDate() + Number(days || 0));
       const z = d.getTimezoneOffset() * 60000;
       return new Date(d - z).toISOString().slice(0,10);
     }
+
     function genFolio(){
       const d = new Date();
       const pad = n => String(n).padStart(2,'0');
       return `CVC-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
     }
-    function csvEscape(s){ return '"' + String(s).replaceAll('"','""') + '"'; }
+
+    function csvEscape(s){
+      return '"' + String(s).replaceAll('"','""') + '"';
+    }
 
     function normalizeName(s){
       return (s || '').toString().trim().toLowerCase();
@@ -720,6 +714,16 @@
 
     function normalizeLine(s){
       return String(s || "").replace(/\s+/g, " ").trim();
+    }
+
+    function productoBonito(s){
+      const limpio = String(s || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+
+      if(!limpio) return "";
+      return limpio.charAt(0).toUpperCase() + limpio.slice(1);
     }
 
     function hashQr(str){
@@ -883,7 +887,7 @@
         if(!sku || !Number.isFinite(kgForDb) || kgForDb <= 0) return null;
 
         return {
-          producto: producto || sku,
+          producto: productoBonito(producto || sku),
           sku,
           kg: kgForDb
         };
@@ -935,7 +939,7 @@
         }else{
           map.set(sku, {
             sku,
-            producto: String(it.producto || sku),
+            producto: productoBonito(String(it.producto || sku)),
             kgTotal: kg,
             lines: 1
           });
@@ -949,7 +953,7 @@
       const grupos = {};
 
       det.forEach(d=>{
-        const prod = d.producto || 'Sin producto';
+        const prod = productoBonito(d.producto || 'Sin producto');
         if(!grupos[prod]){
           grupos[prod] = { kg:0, pzas:0, tienePzas:false };
         }
@@ -1006,7 +1010,6 @@
     const pPrecio = $('#pPrecio');
     const subtotalBox = $('#subtotalBox');
 
-    const vbToggleCam = $('#vbToggleCam');
     const vbProcesarManual = $('#vbProcesarManual');
     const vbLimpiar = $('#vbLimpiar');
     const vbPayload = $('#vbPayload');
@@ -1035,11 +1038,7 @@
 
     const notaObs = $('#notaObs');
 
-    let vbScanner = null;
-    let vbRunning = false;
     let vbBusy = false;
-    let vbCameras = [];
-    let vbCamIndex = 0;
 
     notaFecha.value = todayISO();
     notaVence.value = addDays(notaFecha.value, notaDias.value);
@@ -1091,14 +1090,10 @@
     $('#btnCSV').addEventListener('click', ()=> activeNota() && exportNotaCSV(activeNota().id));
     $('#btnCerrar').addEventListener('click', cerrarNota);
     $('#btnNuevoCliente').addEventListener('click', addCliente);
+    $('#btnAbrirVentaBodega').addEventListener('click', abrirVentaBodegaDirecto);
     $('#btnBandeja').addEventListener('click', loadBandeja);
     $('#btnDiaA4').addEventListener('click', imprimirDiaA4);
     $('#btnDiaCSV').addEventListener('click', exportDiaCSV);
-
-    vbToggleCam?.addEventListener('click', async ()=>{
-      if(vbRunning) await stopVentaBodegaCam();
-      else await startVentaBodegaCam();
-    });
 
     vbProcesarManual?.addEventListener('click', async ()=>{
       await processVentaBodegaText(vbPayload.value || '');
@@ -1114,9 +1109,10 @@
       if(!file) return;
 
       try{
-        if(!vbScanner) vbScanner = new Html5Qrcode("vbReader");
+        const tmpScanner = new Html5Qrcode("tempQrReaderHidden");
         setVBStatus('Leyendo foto del QR…', true);
-        const decodedText = await vbScanner.scanFile(file, true);
+        const decodedText = await tmpScanner.scanFile(file, true);
+        await tmpScanner.clear();
         vbPayload.value = decodedText || '';
         await processVentaBodegaText(decodedText);
       }catch(err){
@@ -1183,6 +1179,11 @@
     });
 
     window.addEventListener('load', async ()=>{
+      const hiddenDiv = document.createElement('div');
+      hiddenDiv.id = 'tempQrReaderHidden';
+      hiddenDiv.style.display = 'none';
+      document.body.appendChild(hiddenDiv);
+
       await Promise.all([loadClientes(), loadProductos()]);
       notaFolio.value = genFolio();
       await loadBandeja();
@@ -1263,71 +1264,6 @@
       vbStatus.className = ok ? 'okBox' : 'warnBox';
     }
 
-    async function refreshVentaBodegaCameras(){
-      try{
-        vbCameras = await Html5Qrcode.getCameras();
-        if(!Array.isArray(vbCameras)) vbCameras = [];
-        const idxBack = vbCameras.findIndex(c => /back|rear|environment|trasera/i.test(c.label || ""));
-        if(idxBack >= 0) vbCamIndex = idxBack;
-      }catch(err){
-        console.error(err);
-        vbCameras = [];
-      }
-    }
-
-    async function startVentaBodegaCam(){
-      if(!isVentaBodegaSelected()) return;
-      if(vbRunning) return;
-
-      try{
-        if(!vbScanner) vbScanner = new Html5Qrcode("vbReader");
-        await refreshVentaBodegaCameras();
-
-        const config = {
-          fps: 15,
-          qrbox: (vw, vh) => {
-            const size = Math.min(vw, vh) * 0.75;
-            return { width: Math.floor(size), height: Math.floor(size) };
-          }
-        };
-
-        const constraints = vbCameras.length
-          ? { deviceId: { exact: vbCameras[vbCamIndex].id } }
-          : { facingMode: { ideal: "environment" } };
-
-        await vbScanner.start(
-          constraints,
-          config,
-          async (decodedText)=>{
-            vbPayload.value = decodedText || '';
-            await processVentaBodegaText(decodedText);
-          }
-        );
-
-        vbRunning = true;
-        vbToggleCam.textContent = 'Detener cámara';
-        setVBStatus('Cámara lista. Escanea el ticket QR.', true);
-      }catch(err){
-        console.error(err);
-        vbRunning = false;
-        vbToggleCam.textContent = 'Iniciar cámara';
-        setVBStatus('No pude abrir la cámara.', false);
-        alert('No se pudo abrir la cámara.');
-      }
-    }
-
-    async function stopVentaBodegaCam(){
-      if(!vbRunning) return;
-      try{
-        if(vbScanner) await vbScanner.stop();
-      }catch(err){
-        console.error(err);
-      }
-      vbRunning = false;
-      vbToggleCam.textContent = 'Iniciar cámara';
-      setVBStatus('Cámara detenida.', true);
-    }
-
     function updateCaptureMode(){
       const pg = isPielesYGrasasSelected();
       const vb = isVentaBodegaSelected();
@@ -1335,10 +1271,6 @@
       capPG.style.display = pg ? 'block' : 'none';
       capVentaBodega.style.display = vb ? 'block' : 'none';
       capNormal.style.display = (!pg && !vb) ? 'block' : 'none';
-
-      if(!vb && vbRunning){
-        stopVentaBodegaCam();
-      }
 
       if(pg){
         setTimeout(()=>{ seboKg?.focus(); seboKg?.select(); }, 0);
@@ -1382,15 +1314,15 @@
       }
 
       PRODUCTOS = data || [];
-      PRECIOS = Object.fromEntries(PRODUCTOS.map(p=>[p.nombre, Number(p.precio_kg||0).toFixed(2)]));
+      PRECIOS = Object.fromEntries(PRODUCTOS.map(p=>[productoBonito(p.nombre), Number(p.precio_kg||0).toFixed(2)]));
 
       $('#catProductos').innerHTML = PRODUCTOS
-        .map(p=> `<option value="${p.nombre}"></option>`)
+        .map(p=> `<option value="${productoBonito(p.nombre)}"></option>`)
         .join('');
     }
 
     function prefPrecio(){
-      const n = (pProducto.value||'').trim();
+      const n = productoBonito((pProducto.value||'').trim());
       if(PRECIOS[n]) pPrecio.value = PRECIOS[n];
     }
 
@@ -1440,6 +1372,44 @@
       }catch(e){
         console.error(e);
       }
+    }
+
+    async function abrirVentaBodegaDirecto(){
+      let cliente = CLIENTES.find(c => normalizeName(c.nombre) === normalizeName(VENTA_BODEGA_NOMBRE));
+
+      if(!cliente){
+        const row = {
+          id: crypto.randomUUID(),
+          nombre: VENTA_BODEGA_NOMBRE,
+          telefono: null
+        };
+
+        const { error } = await sb.from('clientes').insert(row);
+        if(error){
+          console.error(error);
+          return alert('No se pudo crear el cliente Venta Bodega');
+        }
+
+        await loadClientes();
+        cliente = CLIENTES.find(c => normalizeName(c.nombre) === normalizeName(VENTA_BODEGA_NOMBRE));
+      }
+
+      if(!cliente){
+        return alert('No encontré el cliente Venta Bodega');
+      }
+
+      slotState[slotActive].cliente_id = cliente.id;
+      slotState[slotActive].telefono = cliente.telefono || null;
+
+      cliSelect.value = cliente.id;
+      cliTelefono.value = cliente.telefono || '';
+
+      updateCaptureMode();
+      await continuarNota();
+
+      setTimeout(()=>{
+        vbPayload?.focus();
+      }, 100);
     }
 
     async function continuarNota(){
@@ -1520,7 +1490,7 @@
       const nota = activeNota();
       if(!nota) return alert('Primero crea/continúa una nota en el slot activo');
 
-      const prod = (pProducto.value||'').trim();
+      const prod = productoBonito((pProducto.value||'').trim());
       const cant = Number(pKg.value||0);
       const piezas = (pPzas.value !== '' && pPzas.value != null) ? Number(pPzas.value||0) : null;
       const precio = Number(pPrecio.value||0);
@@ -1556,7 +1526,7 @@
       const nota = activeNota();
       if(!nota) return alert('Primero crea/continúa una nota en el slot activo');
 
-      const prod = (productoNombre || '').trim();
+      const prod = productoBonito((productoNombre || '').trim());
       const cant = Number(kgVal || 0);
       const piezas = (pzasVal !== '' && pzasVal != null) ? Number(pzasVal || 0) : null;
 
@@ -1619,7 +1589,7 @@
         }
 
         const rows = grouped.map(item=>{
-          const producto = normalizeLine(item.producto || item.sku || '');
+          const producto = productoBonito(normalizeLine(item.producto || item.sku || ''));
           const cantidad = Number(item.kgTotal || 0);
           const precio = Number(PRECIOS[producto] || 0);
 
@@ -1637,13 +1607,8 @@
         const { error } = await sb.from('notas_detalle').insert(rows);
         if(error) throw error;
 
-        const resumen = grouped.map(g => `${g.producto}: ${to2(g.kgTotal)} kg`).join(' | ');
+        const resumen = grouped.map(g => `${productoBonito(g.producto)}: ${to2(g.kgTotal)} kg`).join(' | ');
         setVBStatus(`Ticket agregado correctamente. ${grouped.length} productos cargados. ${resumen}`, true);
-
-        pProducto.value = grouped[0]?.producto || '';
-        pKg.value = Number(grouped[0]?.kgTotal || 0).toFixed(2);
-        pPzas.value = '';
-        pPrecio.value = Number(PRECIOS[grouped[0]?.producto] || 0).toFixed(2);
 
         clearDirty();
         await recalcNota(nota.id);
@@ -1723,7 +1688,7 @@
       vistaBody.innerHTML = (det||[]).map(d=> `
         <tr data-id="${d.id}">
           <td>${new Date(d.created_at).toLocaleString()}</td>
-          <td>${d.producto}</td>
+          <td>${productoBonito(d.producto)}</td>
           <td class="editable" data-field="cantidad">${to2(d.cantidad)}</td>
           <td class="editable" data-field="piezas">${d.piezas != null ? d.piezas : ''}</td>
           <td class="editable" data-field="precio">$${to2(d.precio)}</td>
@@ -1892,7 +1857,7 @@
       bandejaBody.innerHTML = rows.map(r=> `
         <tr>
           <td>${r.folio}</td>
-          <td>${r.clientes?.nombre||''}</td>
+          <td>${productoBonito(r.clientes?.nombre||'')}</td>
           <td>$${to2(r.saldo||0)}</td>
           <td>${r.estado||'abierta'}</td>
           <td style="text-align:right">
@@ -1958,7 +1923,7 @@
     function plantillaWA(nota, det, clienteNombre){
       const items = (det||[]).map(d=>{
         const piezasTxt = d.piezas ? ` (${d.piezas} pzas)` : '';
-        return `• ${d.producto} ${to2(d.cantidad)}kg${piezasTxt}`;
+        return `• ${productoBonito(d.producto)} ${to2(d.cantidad)}kg${piezasTxt}`;
       }).join('\n');
 
       return [
@@ -2006,7 +1971,7 @@
         return;
       }
 
-      const msg = plantillaWA(nota, det||[], nombre);
+      const msg = plantillaWA(nota, det||[], productoBonito(nombre));
       const u = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
       const u2 = `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(msg)}`;
 
@@ -2034,7 +1999,7 @@
       el.classList.remove('ticket80');
 
       el.innerHTML = `
-        <h3>Nota — ${nota.clientes?.nombre||''}</h3>
+        <h3>Nota — ${productoBonito(nota.clientes?.nombre||'')}</h3>
         <div><b>Folio:</b> ${nota.folio} &nbsp; <b>Fecha:</b> ${nota.fecha} &nbsp; <b>Vence:</b> ${nota.vence||''}</div>
         <div><b>Total:</b> $${to2(nota.total)} &nbsp; <b>Saldo:</b> $${to2(nota.saldo)}</div>
 
@@ -2052,7 +2017,7 @@
             ${(det||[]).map(d=>`
               <tr>
                 <td>${new Date(d.created_at).toLocaleString()}</td>
-                <td>${d.producto}</td>
+                <td>${productoBonito(d.producto)}</td>
                 <td>${to2(d.cantidad)}</td>
                 <td>${d.piezas != null ? d.piezas : ''}</td>
                 <td>$${to2(d.precio)}</td>
@@ -2082,14 +2047,14 @@
         .eq('nota_id', nota_id)
         .order('created_at');
 
-      const cliente = nota.clientes?.nombre || '(sin nombre)';
+      const cliente = productoBonito(nota.clientes?.nombre || '(sin nombre)');
       const obs = nota.observaciones || '—';
 
       const filas = (det || []).map(d=>{
         const cantidadTexto = d.piezas ? `${to2(d.cantidad)} (${d.piezas}pz)` : to2(d.cantidad);
         return `
           <tr>
-            <td class="prod">${d.producto}</td>
+            <td class="prod">${productoBonito(d.producto)}</td>
             <td class="right cant">${cantidadTexto}</td>
           </tr>
         `;
@@ -2272,20 +2237,20 @@
 
       const byClient = {};
       (notas || []).forEach(n=>{
-        const c = n.clientes?.nombre || '—';
+        const c = productoBonito(n.clientes?.nombre || '—');
         if(!byClient[c]) byClient[c] = { items: [], totalImporte: 0 };
       });
 
       detalles.forEach(d=>{
         const nota = (notas || []).find(x => x.id === d.nota_id);
-        const cliente = nota?.clientes?.nombre || '—';
+        const cliente = productoBonito(nota?.clientes?.nombre || '—');
 
         if(!byClient[cliente]) byClient[cliente] = { items: [], totalImporte: 0 };
 
         byClient[cliente].items.push({
           folio: nota?.folio || '',
           created_at: d.created_at,
-          producto: d.producto,
+          producto: productoBonito(d.producto),
           cantidad: Number(d.cantidad || 0),
           piezas: d.piezas,
           importe: Number(d.importe || 0)
@@ -2297,7 +2262,7 @@
       const resumenProductos = {};
 
       detalles.forEach(d=>{
-        const prod = d.producto || 'Sin producto';
+        const prod = productoBonito(d.producto || 'Sin producto');
 
         if(!resumenProductos[prod]){
           resumenProductos[prod] = {
@@ -2432,7 +2397,7 @@
               <tbody>
                 ${resumenOrdenado.map(([prod, r])=>`
                   <tr>
-                    <td>${prod}</td>
+                    <td>${productoBonito(prod)}</td>
                     <td class="ta-right">${to2(r.kg)}</td>
                     <td class="ta-right">${r.tienePzas ? Math.round(r.pzas) : ''}</td>
                     <td class="ta-right">$${to2(r.importe)}</td>
@@ -2452,7 +2417,7 @@
         const nombreOriginal = {};
 
         (pack.items || []).forEach(d=>{
-          const prodOriginal = (d.producto || 'Sin producto').trim();
+          const prodOriginal = productoBonito((d.producto || 'Sin producto').trim());
           const prodKey = prodOriginal.toLowerCase();
 
           if(!resumenCliente[prodKey]){
@@ -2498,7 +2463,7 @@
                   <tr>
                     <td>${d.folio}</td>
                     <td>${new Date(d.created_at).toLocaleTimeString()}</td>
-                    <td>${d.producto}</td>
+                    <td>${productoBonito(d.producto)}</td>
                     <td class="ta-right">${to2(d.cantidad)}</td>
                     <td class="ta-right">${d.piezas != null ? d.piezas : ''}</td>
                   </tr>
@@ -2546,11 +2511,11 @@
       const rows = (det||[]).map(d=>{
         const n = (notas||[]).find(x=>x.id===d.nota_id) || {};
         return [
-          (n.clientes?.nombre||''),
+          productoBonito(n.clientes?.nombre||''),
           n.folio,
           f,
           new Date(d.created_at).toLocaleTimeString(),
-          d.producto,
+          productoBonito(d.producto),
           to2(d.cantidad),
           (d.piezas != null ? d.piezas : ''),
           to2(d.precio),
@@ -2583,11 +2548,11 @@
 
       const head = ['Cliente','Folio','Fecha','Hora','Producto','Kg','Piezas','Precio','Importe'];
       const rows = (det||[]).map(d => ([
-        (nota?.clientes?.nombre || ''),
+        productoBonito(nota?.clientes?.nombre || ''),
         nota?.folio || '',
         nota?.fecha || '',
         new Date(d.created_at).toLocaleTimeString(),
-        d.producto,
+        productoBonito(d.producto),
         to2(d.cantidad),
         (d.piezas != null ? d.piezas : ''),
         to2(d.precio),
