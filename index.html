@@ -1109,11 +1109,16 @@
       if(!file) return;
 
       try{
-        const tmpScanner = new Html5Qrcode("tempQrReaderHidden");
+        vbPayload.value = '';
         setVBStatus('Leyendo foto del QR…', true);
+
+        const tmpScanner = new Html5Qrcode("tempQrReaderHidden");
         const decodedText = await tmpScanner.scanFile(file, true);
         await tmpScanner.clear();
+
+        vbPayload.value = '';
         vbPayload.value = decodedText || '';
+
         await processVentaBodegaText(decodedText);
       }catch(err){
         console.error(err);
@@ -1408,6 +1413,7 @@
       await continuarNota();
 
       setTimeout(()=>{
+        vbPayload.value = '';
         vbPayload?.focus();
       }, 100);
     }
@@ -1574,6 +1580,7 @@
       vbBusy = true;
 
       try{
+        vbPayload.value = rawText;
         setVBStatus('Procesando ticket QR…', true);
 
         const raw = safeParseJson(rawText);
@@ -1610,6 +1617,7 @@
         const resumen = grouped.map(g => `${productoBonito(g.producto)}: ${to2(g.kgTotal)} kg`).join(' | ');
         setVBStatus(`Ticket agregado correctamente. ${grouped.length} productos cargados. ${resumen}`, true);
 
+        vbPayload.value = '';
         clearDirty();
         await recalcNota(nota.id);
       }catch(err){
