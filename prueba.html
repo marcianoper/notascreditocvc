@@ -712,6 +712,14 @@
       return (s || '').toString().trim().toLowerCase();
     }
 
+    function normalizeKey(s){
+      return String(s || '')
+        .trim()
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, ' ');
+    }
+
     function normalizeLine(s){
       return String(s || "").replace(/\s+/g, " ").trim();
     }
@@ -733,6 +741,49 @@
         h = Math.imul(h, 16777619);
       }
       return "QR_" + (h >>> 0).toString(16);
+    }
+
+    const PRODUCTO_ALIAS = {
+      'cabeza': ['cabeza', 'cabeza de res', 'cabeza congelada', 'cabeza sin lengua', 'cabeza de rastro'],
+      'cabeza de res': ['cabeza', 'cabeza de res'],
+      'cabeza congelada': ['cabeza congelada'],
+      'cabeza sin lengua': ['cabeza sin lengua'],
+      'cabeza de rastro': ['cabeza de rastro'],
+      'pellejo': ['pellejo'],
+      'tripa': ['tripa', 'tripas'],
+      'corazon': ['corazon', 'cora', 'corazón'],
+      'lengua': ['lengua', 'lenguas']
+    };
+
+    function resolverProductoCatalogo(productoOriginal, sku=''){
+      const limpio = normalizeKey(productoOriginal);
+      const skuLimpio = normalizeKey(String(sku || '').replaceAll('_', ' '));
+
+      const catalogo = (PRODUCTOS || []).map(p => ({
+        original: productoBonito(p.nombre),
+        key: normalizeKey(p.nombre)
+      }));
+
+      const exacto = catalogo.find(x => x.key === limpio);
+      if(exacto) return exacto.original;
+
+      const exactoSku = catalogo.find(x => x.key === skuLimpio);
+      if(exactoSku) return exactoSku.original;
+
+      for (const item of catalogo){
+        const alias = PRODUCTO_ALIAS[item.key] || [];
+        if(alias.includes(limpio) || alias.includes(skuLimpio)) return item.original;
+      }
+
+      if(limpio === 'cabeza' || sku === 'CABEZA_RES'){
+        const cabezaPreferida =
+          catalogo.find(x => x.key === 'cabeza de res') ||
+          catalogo.find(x => x.key === 'cabeza') ||
+          catalogo.find(x => x.key.includes('cabeza'));
+        if(cabezaPreferida) return cabezaPreferida.original;
+      }
+
+      return productoBonito(productoOriginal || sku || 'Producto Libre');
     }
 
     function canonSku(productoOriginal){
@@ -879,15 +930,19 @@
           0
         );
 
+        if(!producto) return null;
         if(isIgnorableItem(producto)) return null;
+        if(!Number.isFinite(qty) || qty <= 0) return null;
 
         const sku = canonSku(producto);
         const { kgForDb } = applyBoxRules(producto, qty);
 
-        if(!sku || !Number.isFinite(kgForDb) || kgForDb <= 0) return null;
+        if(!Number.isFinite(kgForDb) || kgForDb <= 0) return null;
+
+        const productoCatalogo = resolverProductoCatalogo(producto, sku);
 
         return {
-          producto: productoBonito(producto || sku),
+          producto: productoCatalogo,
           sku,
           kg: kgForDb
         };
@@ -1573,7 +1628,7 @@
       const nota = activeNota();
       if(!nota) return alert('Primero crea o continúa una nota en el slot activo.');
 
-      const rawText = normalizeLine(text);
+      const rawText = String(text || '').trim();
       if(!rawText) return alert('Pega o escanea primero el contenido del QR.');
 
       if(vbBusy) return;
@@ -1586,7 +1641,7 @@
         const raw = safeParseJson(rawText);
         const payload = normalizePayload(raw, rawText);
 
-        if(!payload?.items?.length){
+        if(!payload || !Array.isArray(payload._itemsUi) || !payload._itemsUi.length){
           throw new Error('El QR no trae productos válidos.');
         }
 
@@ -1595,27 +1650,38 @@
           throw new Error('No encontré productos para agregar.');
         }
 
-        const rows = grouped.map(item=>{
-          const producto = productoBonito(normalizeLine(item.producto || item.sku || ''));
-          const cantidad = Number(item.kgTotal || 0);
-          const precio = Number(PRECIOS[producto] || 0);
+        const rows = grouped
+          .map(item=>{
+            const producto = resolverProductoCatalogo(item.producto || item.sku || '', item.sku || '');
+            const cantidad = Number(item.kgTotal || 0);
+            const precio = Number(PRECIOS[producto] || 0);
 
-          return {
-            id: crypto.randomUUID(),
-            nota_id: nota.id,
-            producto,
-            cantidad,
-            piezas: null,
-            precio,
-            importe: cantidad * precio
-          };
-        });
+            if(!producto || !Number.isFinite(cantidad) || cantidad <= 0) return null;
+
+            return {
+              id: crypto.randomUUID(),
+              nota_id: nota.id,
+              producto,
+              cantidad,
+              piezas: null,
+              precio,
+              importe: cantidad * precio
+            };
+          })
+          .filter(Boolean);
+
+        if(!rows.length){
+          throw new Error('El QR fue leído, pero ningún producto pudo convertirse en partida.');
+        }
 
         const { error } = await sb.from('notas_detalle').insert(rows);
         if(error) throw error;
 
-        const resumen = grouped.map(g => `${productoBonito(g.producto)}: ${to2(g.kgTotal)} kg`).join(' | ');
-        setVBStatus(`Ticket agregado correctamente. ${grouped.length} productos cargados. ${resumen}`, true);
+        const resumen = rows
+          .map(g => `${productoBonito(g.producto)}: ${to2(g.cantidad)} kg`)
+          .join(' | ');
+
+        setVBStatus(`Ticket agregado correctamente. ${rows.length} productos cargados. ${resumen}`, true);
 
         vbPayload.value = '';
         clearDirty();
@@ -1632,15 +1698,42 @@
     async function recalcNota(nota_id){
       let total = 0;
 
-      try{
-        const { data } = await sb.rpc('sum_importe_nota', { p_nota_id: nota_id });
-        total = Number(data?.total || 0);
-      }catch{
-        const { data } = await sb.from('notas_detalle').select('importe').eq('nota_id', nota_id);
-        total = (data||[]).reduce((a,b)=>a+Number(b.importe||0),0);
+      const rpcResp = await sb.rpc('sum_importe_nota', { p_nota_id: nota_id });
+
+      if(!rpcResp.error && rpcResp.data != null){
+        if(typeof rpcResp.data === 'number'){
+          total = Number(rpcResp.data || 0);
+        }else{
+          total = Number(rpcResp.data?.total || 0);
+        }
+      }else{
+        console.warn('RPC sum_importe_nota no disponible, usando fallback.', rpcResp.error);
+
+        const { data, error } = await sb
+          .from('notas_detalle')
+          .select('importe')
+          .eq('nota_id', nota_id);
+
+        if(error){
+          console.error(error);
+          alert('No se pudo recalcular la nota.');
+          return;
+        }
+
+        total = (data || []).reduce((a, b) => a + Number(b.importe || 0), 0);
       }
 
-      await sb.from('notas_credito').update({ total, saldo: total }).eq('id', nota_id);
+      const { error: updError } = await sb
+        .from('notas_credito')
+        .update({ total, saldo: total })
+        .eq('id', nota_id);
+
+      if(updError){
+        console.error(updError);
+        alert('No se pudo actualizar el total de la nota.');
+        return;
+      }
+
       await renderVista();
       await loadBandeja();
     }
@@ -2486,129 +2579,4 @@
             </div>
           </div>
         </body>
-        </html>
-      `;
-
-      const win = window.open('', '_blank', 'width=1200,height=800');
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-
-      setTimeout(() => { win.print(); }, 400);
-    }
-
-    async function exportDiaCSV(){
-      const f = diaFecha.value || todayISO();
-
-      const { data: notas } = await sb
-        .from('notas_credito')
-        .select('id, folio, fecha, clientes(nombre)')
-        .eq('fecha', f);
-
-      const ids = (notas||[]).map(n=>n.id);
-      if(!ids.length) return alert('No hay notas ese día');
-
-      const { data: det } = await sb
-        .from('notas_detalle')
-        .select('nota_id, producto, cantidad, piezas, precio, importe, created_at')
-        .in('nota_id', ids);
-
-      const head = ['Cliente','Folio','Fecha','Hora','Producto','Kg','Piezas','Precio','Importe'];
-
-      const rows = (det||[]).map(d=>{
-        const n = (notas||[]).find(x=>x.id===d.nota_id) || {};
-        return [
-          productoBonito(n.clientes?.nombre||''),
-          n.folio,
-          f,
-          new Date(d.created_at).toLocaleTimeString(),
-          productoBonito(d.producto),
-          to2(d.cantidad),
-          (d.piezas != null ? d.piezas : ''),
-          to2(d.precio),
-          to2(d.importe)
-        ];
-      });
-
-      const csv = [head, ...rows].map(r=> r.map(csvEscape).join(',')).join('\n');
-      const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `reporte_${f}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    async function exportNotaCSV(nota_id){
-      const { data: nota } = await sb
-        .from('notas_credito')
-        .select('folio, fecha, clientes(nombre), cliente_id')
-        .eq('id', nota_id)
-        .single();
-
-      const { data: det } = await sb
-        .from('notas_detalle')
-        .select('*')
-        .eq('nota_id', nota_id)
-        .order('created_at');
-
-      const head = ['Cliente','Folio','Fecha','Hora','Producto','Kg','Piezas','Precio','Importe'];
-      const rows = (det||[]).map(d => ([
-        productoBonito(nota?.clientes?.nombre || ''),
-        nota?.folio || '',
-        nota?.fecha || '',
-        new Date(d.created_at).toLocaleTimeString(),
-        productoBonito(d.producto),
-        to2(d.cantidad),
-        (d.piezas != null ? d.piezas : ''),
-        to2(d.precio),
-        to2(d.importe)
-      ]));
-
-      const csv = [head, ...rows].map(r=> r.map(csvEscape).join(',')).join('\n');
-      const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `nota_${nota?.folio || 'sin_folio'}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    async function cerrarNotaById(nota_id){
-      if(!nota_id) return;
-      if(!confirm('¿Cerrar esta nota?')) return;
-
-      const { error } = await sb
-        .from('notas_credito')
-        .update({estado:'cerrada'})
-        .eq('id', nota_id);
-
-      if(error){
-        console.error(error);
-        alert('No se pudo cerrar la nota');
-        return;
-      }
-
-      if(notaA?.id === nota_id) notaA = null;
-      if(notaB?.id === nota_id) notaB = null;
-
-      await renderVista();
-      await loadBandeja();
-      alert('✅ Nota cerrada');
-    }
-
-    async function cerrarNota(){
-      const n = activeNota();
-      if(!n) return alert('Sin nota');
-
-      await sb.from('notas_credito').update({estado:'cerrada'}).eq('id', n.id);
-      await renderVista();
-      await loadBandeja();
-      alert('✅ Nota cerrada');
-    }
-  </script>
-</body>
-</html>
+       
