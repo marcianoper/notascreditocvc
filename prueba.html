@@ -2157,7 +2157,28 @@ async function imprimirSilenciosoTexto(texto){
       window.print();
       setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
     }
+function centerText(txt, width = 32){
+  txt = String(txt || "");
+  const pad = Math.max(0, Math.floor((width - txt.length) / 2));
+  return " ".repeat(pad) + txt;
+}
 
+function lineText(char = "-", width = 32){
+  return char.repeat(width);
+}
+
+function rowTicket(left, right, width = 32){
+  left = String(left || "");
+  right = String(right || "");
+
+  if(left.length > 15){
+    left = left.slice(0, 15);
+  }
+
+  const space = Math.max(1, width - left.length - right.length);
+  return left + " ".repeat(space) + right;
+}
+    
 async function imprimirNota80mm(nota_id){
   await saveNotaObs();
 
