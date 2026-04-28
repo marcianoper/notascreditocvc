@@ -2178,8 +2178,12 @@ async function imprimirNota80mm(nota_id){
   const grupos = {};
   (det || []).forEach(d=>{
     const prod = productoBonito(d.producto);
-    if(!grupos[prod]) grupos[prod] = { kg:0, pzas:0, tienePzas:false };
+    if(!grupos[prod]){
+      grupos[prod] = { kg:0, pzas:0, tienePzas:false };
+    }
+
     grupos[prod].kg += Number(d.cantidad || 0);
+
     if(d.piezas != null){
       grupos[prod].pzas += Number(d.piezas || 0);
       grupos[prod].tienePzas = true;
@@ -2195,31 +2199,31 @@ async function imprimirNota80mm(nota_id){
 
   const tablaTexto = resumenArr.map(([prod, g])=>{
     const pzasTxt = g.tienePzas ? ` (${Math.round(g.pzas)}pz)` : '';
-    const izquierda = prod.padEnd(16, ' ');
-    const derecha = `${to2(g.kg)}${pzasTxt}`;
-    return `${izquierda}${derecha}`;
+    const valor = `${to2(g.kg)}${pzasTxt}`;
+    return rowTicket(prod, valor, 32);
   }).join('\n');
 
-  const ticketTexto = `
-        Carnes y Vísceras del Centro
-              NOTA A CRÉDITO
-Cliente: ${cliente}
-Folio: ${nota.folio}
-Fecha: ${nota.fecha}
-${resumenTexto}
-
-             PROD           KG/PZAS
-----------------------------------------
-${tablaTexto}
-----------------------------------------
-
-        ¡Gracias por su preferencia!
-¡Carnes y Vísceras del Centro tu mejor aliado!
-
-
-
-
-`;
+  const ticketTexto = [
+    "",
+    centerText("Carnes y Vísceras del Centro"),
+    centerText("NOTA A CRÉDITO"),
+    `Cliente: ${cliente}`,
+    `Folio: ${nota.folio}`,
+    `Fecha: ${nota.fecha}`,
+    resumenTexto,
+    "",
+    rowTicket("PROD", "KG/PZAS", 32),
+    lineText("-", 32),
+    tablaTexto,
+    lineText("-", 32),
+    "",
+    centerText("¡Gracias por su preferencia!"),
+    centerText("¡Carnes y Vísceras del Centro"),
+    centerText("tu mejor aliado!"),
+    "",
+    "",
+    ""
+  ].join("\n");
 
   if(USAR_IMPRESION_SILENCIOSA){
     const ok = await imprimirSilenciosoTexto(ticketTexto);
@@ -2228,7 +2232,16 @@ ${tablaTexto}
 
   const win = window.open('', '_blank', 'width=420,height=700');
   win.document.open();
-  win.document.write(`<pre style="font-size:16px;width:80mm;white-space:pre-wrap;">${ticketTexto}</pre>`);
+  win.document.write(`
+    <pre style="
+      font-family: Consolas, monospace;
+      font-size:18px;
+      font-weight:700;
+      width:80mm;
+      white-space:pre-wrap;
+      line-height:1.25;
+    ">${ticketTexto}</pre>
+  `);
   win.document.close();
   win.focus();
   setTimeout(()=>{ win.print(); }, 300);
