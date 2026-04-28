@@ -2174,54 +2174,65 @@ async function imprimirNota80mm(nota_id){
     .order('created_at');
 
   const cliente = productoBonito(nota.clientes?.nombre || '(sin nombre)');
-  const obs = nota.observaciones || '—';
 
-  const lineas = (det || []).map(d=>{
-    const producto = productoBonito(d.producto);
-    const cantidadTexto = d.piezas 
-      ? `${to2(d.cantidad)} kg / ${d.piezas} pz`
-      : `${to2(d.cantidad)} kg`;
+  const grupos = {};
+  (det || []).forEach(d=>{
+    const prod = productoBonito(d.producto);
+    if(!grupos[prod]) grupos[prod] = { kg:0, pzas:0, tienePzas:false };
+    grupos[prod].kg += Number(d.cantidad || 0);
+    if(d.piezas != null){
+      grupos[prod].pzas += Number(d.piezas || 0);
+      grupos[prod].tienePzas = true;
+    }
+  });
 
-    return `${producto}\n${cantidadTexto}`;
-  }).join('\n------------------------------\n');
+  const resumenArr = Object.entries(grupos);
+
+  const resumenTexto = resumenArr.map(([prod, g])=>{
+    const pzasTxt = g.tienePzas ? ` / ${Math.round(g.pzas)} pzas` : '';
+    return `TOTAL ${prod} = ${to2(g.kg)} kg${pzasTxt}`;
+  }).join('\n');
+
+  const tablaTexto = resumenArr.map(([prod, g])=>{
+    const pzasTxt = g.tienePzas ? ` (${Math.round(g.pzas)}pz)` : '';
+    const izquierda = prod.padEnd(16, ' ');
+    const derecha = `${to2(g.kg)}${pzasTxt}`;
+    return `${izquierda}${derecha}`;
+  }).join('\n');
 
   const ticketTexto = `
-${STORE_NAME}
-NOTA A CREDITO
-------------------------------
+        Carnes y Vísceras del Centro
+              NOTA A CRÉDITO
 Cliente: ${cliente}
 Folio: ${nota.folio}
 Fecha: ${nota.fecha}
-------------------------------
-${lineas}
-------------------------------
-OBSERVACIONES:
-${obs}
-------------------------------
-Gracias por su preferencia
-Carnes y Vísceras del Centro
-tu mejor aliado
+${resumenTexto}
+
+             PROD           KG/PZAS
+----------------------------------------
+${tablaTexto}
+----------------------------------------
+
+        ¡Gracias por su preferencia!
+¡Carnes y Vísceras del Centro tu mejor aliado!
+
 
 
 
 `;
 
-  // 🔥 IMPRESIÓN AUTOMÁTICA
   if(USAR_IMPRESION_SILENCIOSA){
     const ok = await imprimirSilenciosoTexto(ticketTexto);
     if(ok) return;
   }
 
-  // 🔁 RESPALDO
   const win = window.open('', '_blank', 'width=420,height=700');
   win.document.open();
-  win.document.write(`<pre style="font-size:16px;width:80mm;">${ticketTexto}</pre>`);
+  win.document.write(`<pre style="font-size:16px;width:80mm;white-space:pre-wrap;">${ticketTexto}</pre>`);
   win.document.close();
   win.focus();
-
   setTimeout(()=>{ win.print(); }, 300);
 }
-
     async function imprimirDiaA4(){
       const f = diaFecha.value || todayISO();
 
