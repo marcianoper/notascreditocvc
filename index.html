@@ -501,6 +501,31 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <script>
+    // 🔥 IMPRESIÓN SILENCIOSA VDC
+const IMPRESION_SILENCIOSA_URL = "http://192.168.1.84:5050/imprimir";
+const USAR_IMPRESION_SILENCIOSA = true;
+
+async function imprimirSilenciosoTexto(texto){
+  try{
+    const res = await fetch(IMPRESION_SILENCIOSA_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto })
+    });
+
+    const data = await res.json();
+
+    if(!data.ok){
+      throw new Error(data.error || "Error desconocido");
+    }
+
+    return true;
+  }catch(err){
+    console.error(err);
+    alert("No se pudo imprimir silenciosamente. Verifica que el programa esté abierto.");
+    return false;
+  }
+}
     const SUPABASE_URL = "https://bjebybdqcqscouxlinfd.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqZWJ5YmRxY3FzY291eGxpbmZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMjQ3MTksImV4cCI6MjA3MTkwMDcxOX0.mQgWtiYEyJTiF04pdcLv63SqPNrU1Iehws0vKqr82O0";
 
@@ -2132,187 +2157,208 @@
       window.print();
       setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
     }
+async function imprimirNota80mm(nota_id){
+  await saveNotaObs();
 
-    async function imprimirNota80mm(nota_id){
-      await saveNotaObs();
+  const { data: nota } = await sb
+    .from('notas_credito')
+    .select('*, clientes(nombre)')
+    .eq('id', nota_id)
+    .single();
 
-      const { data: nota } = await sb
-        .from('notas_credito')
-        .select('*, clientes(nombre)')
-        .eq('id', nota_id)
-        .single();
+  const { data: det } = await sb
+    .from('notas_detalle')
+    .select('*')
+    .eq('nota_id', nota_id)
+    .order('created_at');
 
-      const { data: det } = await sb
-        .from('notas_detalle')
-        .select('*')
-        .eq('nota_id', nota_id)
-        .order('created_at');
+  const cliente = productoBonito(nota.clientes?.nombre || '(sin nombre)');
+  const obs = nota.observaciones || '—';
 
-      const cliente = productoBonito(nota.clientes?.nombre || '(sin nombre)');
-      const obs = nota.observaciones || '—';
+  const filas = (det || []).map(d=>{
+    const cantidadTexto = d.piezas ? `${to2(d.cantidad)} (${d.piezas}pz)` : to2(d.cantidad);
+    return `
+      <tr>
+        <td class="prod">${productoBonito(d.producto)}</td>
+        <td class="right cant">${cantidadTexto}</td>
+      </tr>
+    `;
+  }).join('');
 
-      const filas = (det || []).map(d=>{
-        const cantidadTexto = d.piezas ? `${to2(d.cantidad)} (${d.piezas}pz)` : to2(d.cantidad);
-        return `
-          <tr>
-            <td class="prod">${productoBonito(d.producto)}</td>
-            <td class="right cant">${cantidadTexto}</td>
-          </tr>
-        `;
-      }).join('');
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Ticket 80mm</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:#fff;
+    color:#000;
+    font-family:Arial, Helvetica, sans-serif;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
 
-      const html = `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-          <meta charset="utf-8" />
-          <title>Ticket 80mm</title>
-         <style>
-      :root{--ink:#000}
-      *{box-sizing:border-box}
+  #ticket{
+    background:#fff;
+    width:80mm;
+    max-width:80mm;
+    margin:0;
+    padding:3mm;
+  }
 
-      body{
-        margin:0;
-        background:#fff;
-        color:var(--ink);
-        font-family: Arial, Helvetica, sans-serif;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
+  .logo{
+    text-align:center;
+    margin-bottom:4px;
+  }
 
-      #ticket{
-        background:#fff;
-        padding:6px;
-        max-width:80mm;
-        margin:0 auto;
-      }
+  .logo img{
+      width:66mm;
+  max-width:100%;
+  height:auto;
+  }
 
-      #ticket h3{
-        margin:0 0 6px;
-        text-align:center;
-        font-size:16px;
-        font-weight:700;
-      }
+  h3{
+    margin:0 0 6px;
+    text-align:center;
+    font-size:16px;
+    font-weight:700;
+  }
 
-      #ticket .meta{
-        font-size:16px;
-        line-height:1.3;
-        margin-bottom:6px;
-        font-weight:600;
-      }
+  .meta{
+    font-size:15px;
+    line-height:1.22;
+    margin-bottom:6px;
+    font-weight:700;
+  }
 
-      #ticket .obs-block{
-        margin-top:4px;
-        white-space:pre-wrap;
-        font-weight:600;
-      }
+  .obs-block{
+    margin-top:4px;
+    white-space:pre-wrap;
+    font-weight:700;
+  }
 
-      #ticket table{
-        width:100%;
-        border-collapse:collapse;
-        font-size:10px;
-        table-layout:fixed;
-      }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:10px;
+    table-layout:fixed;
+  }
 
-      #ticket thead th{
-        font-weight:700;
-        border-bottom:2px solid #000;
-        padding:5px 2px;
-      }
+  thead th{
+    font-weight:700;
+    border-bottom:2px solid #000;
+    padding:5px 2px;
+  }
 
-      #ticket th,#ticket td{
-        padding:5px 2px;
-        word-wrap:break-word;
-        vertical-align:top;
-      }
+  th,td{
+    padding:5px 2px;
+    word-wrap:break-word;
+    vertical-align:top;
+  }
 
-      #ticket tbody tr{
-        border-bottom:2px solid #000;
-      }
+  tbody tr{
+    border-bottom:2px solid #000;
+  }
 
-      #ticket td.prod{
-        font-weight:600;
-        font-size:16px;
-      }
+  td.prod{
+    font-weight:700;
+    font-size:16px;
+  }
 
-      #ticket td.cant{
-        font-weight:700;
-        font-size:16px;
-      }
+  td.cant{
+    font-weight:700;
+    font-size:16px;
+  }
 
-      .right{text-align:right}
+  .right{text-align:right}
 
-      .thanks{
-        margin-top:10px;
-        text-align:center;
-        font-size:12.5px;
-        font-weight:600;
-        line-height:1.3;
-      }
+  .thanks{
+    margin-top:10px;
+    text-align:center;
+    font-size:11px;
+    font-weight:700;
+    line-height:1.3;
+  }
 
-      @media print{
-        @page{ size: 80mm auto; margin: 0mm; }
-        #ticket{
-          width:80mm;
-          max-width:80mm;
-          margin:0;
-          padding:3mm;
-        }
-      }
-      .logo{
-        text-align:center;
-        margin-bottom:6px;
-      }
-
-      .logo img{
-        width:80mm;
-        height:auto;
-      }
-      </style>
-        </head>
-        <body>
-          <div id="ticket">
-          <div class="logo">
-        <img src="logo.png" alt="Logo">
-      </div>
-            <h3>${STORE_NAME}</h3>
-
-            <div class="meta">
-              NOTA A CRÉDITO<br/>
-              Cliente: ${cliente}<br/>
-              Folio: ${nota.folio}<br/>
-              Fecha: ${nota.fecha}<br/>
-              <div class="obs-block"> ${obs}</div>
-            </div>
-
-            <table>
-              <thead>
-                <tr>
-                  <th>PROD</th>
-                  <th class="right">KG/PZAS</th>
-                </tr>
-              </thead>
-              <tbody>${filas}</tbody>
-            </table>
-
-            <div class="thanks">
-              ¡Gracias por su preferencia!<br/>
-              ¡Carnes y Vísceras del Centro tu mejor aliado!
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      const win = window.open('', '_blank', 'width=420,height=700');
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-
-      setTimeout(()=>{ win.print(); }, 300);
+  @media print{
+    @page{ size:80mm auto; margin:0mm; }
+    body{ margin:0; }
+    #ticket{
+      width:73mm;
+      max-width:80mm;
+      margin:0;
+      padding:3mm;
     }
+  }
+</style>
+</head>
+<body>
+  <div id="ticket">
+    <div class="logo">
+      <img src="file:///C:/bascula/logo.png" alt="Logo">
+    </div>
 
+    <h3>${STORE_NAME}</h3>
+
+    <div class="meta">
+      NOTA A CRÉDITO<br/>
+      Cliente: ${cliente}<br/>
+      Folio: ${nota.folio}<br/>
+      Fecha: ${nota.fecha}<br/>
+      <div class="obs-block">${obs}</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>PROD</th>
+          <th class="right">KG/PZAS</th>
+        </tr>
+      </thead>
+      <tbody>${filas}</tbody>
+    </table>
+
+    <div class="thanks">
+      ¡Gracias por su preferencia!<br/>
+      ¡Carnes y Vísceras del Centro tu mejor aliado!
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+  if(USAR_IMPRESION_SILENCIOSA){
+    try{
+      const res = await fetch(IMPRESION_SILENCIOSA_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html })
+      });
+
+      const data = await res.json();
+
+      if(data.ok) return;
+
+      console.error(data);
+      alert("No se pudo imprimir silenciosamente con formato HTML.");
+    }catch(err){
+      console.error(err);
+      alert("No se pudo conectar con el programa de impresión silenciosa.");
+    }
+  }
+
+  const win = window.open('', '_blank', 'width=420,height=700');
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+
+  setTimeout(()=>{ win.print(); }, 300);
+}
     async function imprimirDiaA4(){
       const f = diaFecha.value || todayISO();
 
