@@ -2331,8 +2331,9 @@ async function imprimirNota80mm(nota_id){
 </html>
 `;
 
-  if(USAR_IMPRESION_SILENCIOSA){
-    try{
+if(USAR_IMPRESION_SILENCIOSA){
+  try{
+    for(let i = 0; i < 2; i++){ // 👈 imprime 2 veces
       const res = await fetch(IMPRESION_SILENCIOSA_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2341,15 +2342,18 @@ async function imprimirNota80mm(nota_id){
 
       const data = await res.json();
 
-      if(data.ok) return;
-
-      console.error(data);
-      alert("No se pudo imprimir silenciosamente con formato HTML.");
-    }catch(err){
-      console.error(err);
-      alert("No se pudo conectar con el programa de impresión silenciosa.");
+      if(!data.ok){
+        throw new Error(data.error || "Error desconocido");
+      }
     }
+
+    return;
+
+  }catch(err){
+    console.error(err);
+    alert("No se pudo imprimir silenciosamente.");
   }
+}
 
   const win = window.open('', '_blank', 'width=420,height=700');
   win.document.open();
