@@ -159,6 +159,23 @@
     }
     .menuPanel button:hover{ background:#f6f7f8; }
     .menuPanel button.danger{ border-color:#fee2e2; color:#b91c1c; }
+
+    /* ===== Pedido en vivo Cliente Bodega ===== */
+    .pedidoLiveGrid{display:grid;grid-template-columns:.9fr 1.1fr;gap:16px;align-items:start}
+    .pedidoLiveTop{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+    .pedidoLiveAlert{display:none;padding:8px 10px;border-radius:999px;background:#eef7f0;color:#0a7a3b;border:1px solid #cde7d4;font-weight:800;font-size:13px}
+    .pedidoLiveAlert.on{display:inline-flex;align-items:center;gap:6px;animation:pulseLive 1.2s infinite}
+    @keyframes pulseLive{0%,100%{opacity:.75}50%{opacity:1}}
+    .pedidoSessionBox{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:12px}
+    .pedidoSessionBox code{display:block;background:#111827;color:#fff;border-radius:10px;padding:10px;margin-top:8px;white-space:nowrap;overflow:auto;font-size:12px}
+    .pedidoMini{font-size:12px;color:#64748b;margin-top:4px}
+    .pedidoTotalBox{font-weight:900;font-size:16px;color:#0a7a3b}
+    .pedidoBadgeStatus{display:inline-block;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#111;font-size:12px;font-weight:800}
+    .pedidoBadgeStatus.escribiendo{background:#eef7f0;color:#0a7a3b}
+    .pedidoBadgeStatus.enviado{background:#eff6ff;color:#1d4ed8}
+    .pedidoBadgeStatus.pasado{background:#f5f3ff;color:#6d28d9}
+    @media(max-width:900px){.pedidoLiveGrid{grid-template-columns:1fr}}
+
   </style>
 </head>
 
@@ -460,6 +477,34 @@
           </thead>
           <tbody id="bandejaBody"></tbody>
         </table>
+      </div>
+    </section>
+
+
+    <section class="card" id="pedidoBodegaMonitor">
+      <div class="pedidoLiveTop">
+        <h2 style="margin:0">🟢 Pedido en vivo del cliente en bodega</h2>
+        <span id="pedidoLiveAlert" class="pedidoLiveAlert">Cliente escribiendo pedido...</span>
+        <span class="pill right">Tiempo real Supabase</span>
+      </div>
+      <div class="pedidoLiveGrid">
+        <div class="pedidoSessionBox">
+          <label>Clave / sesión del pedido</label>
+          <input id="pedidoSessionId" placeholder="Ej. bodega-hoy" value="bodega-hoy" />
+          <div class="pedidoMini">Usa la misma clave en la página del cliente. Puedes poner algo como: josue-hoy, cliente1, mostrador.</div>
+          <label>Link para el cliente</label>
+          <code id="pedidoClienteLink">pedido-cliente.html?session=bodega-hoy</code>
+          <div class="flex" style="margin-top:10px">
+            <button class="btn btn-ghost" id="btnCopiarLinkPedido" type="button">Copiar link</button>
+            <button class="btn btn-ghost" id="btnLimpiarPedidoLive" type="button">Limpiar pedido live</button>
+            <button class="btn btn-primary" id="btnPasarPedidoANota" type="button">Pasar pedido a nota activa</button>
+          </div>
+          <div class="warnBox" style="margin-top:10px">Esta sección no afecta la nota hasta que presiones <b>Pasar pedido a nota activa</b>.</div>
+        </div>
+        <div>
+          <div class="flex"><span class="pedidoBadgeStatus" id="pedidoLiveEstado">Sin actividad</span><span class="pedidoTotalBox right" id="pedidoLiveTotal">0.00 kg</span></div>
+          <table><thead><tr><th>Hora</th><th>Cliente</th><th>Producto</th><th>Kg</th><th>Estado</th></tr></thead><tbody id="pedidoLiveBody"><tr><td colspan="5" class="muted">Esperando pedido del cliente...</td></tr></tbody></table>
+        </div>
       </div>
     </section>
 
@@ -2752,6 +2797,59 @@ if(USAR_IMPRESION_SILENCIOSA){
       await loadBandeja();
       alert('✅ Nota cerrada');
     }
+
+    /* ===== Pedido en vivo Cliente Bodega ===== */
+    const PEDIDO_LIVE_TABLE = "pedidos_bodega_live";
+    let pedidoLiveChannel = null, pedidoLiveRows = [], pedidoAlertTimer = null;
+    const pedidoSessionId = document.getElementById("pedidoSessionId");
+    const pedidoClienteLink = document.getElementById("pedidoClienteLink");
+    const pedidoLiveAlert = document.getElementById("pedidoLiveAlert");
+    const pedidoLiveBody = document.getElementById("pedidoLiveBody");
+    const pedidoLiveTotal = document.getElementById("pedidoLiveTotal");
+    const pedidoLiveEstado = document.getElementById("pedidoLiveEstado");
+    const btnCopiarLinkPedido = document.getElementById("btnCopiarLinkPedido");
+    const btnLimpiarPedidoLive = document.getElementById("btnLimpiarPedidoLive");
+    const btnPasarPedidoANota = document.getElementById("btnPasarPedidoANota");
+    function pedidoCurrentSession(){ return String(pedidoSessionId?.value || "bodega-hoy").trim() || "bodega-hoy"; }
+    function updatePedidoClienteLink(){ if(!pedidoClienteLink) return; const session=encodeURIComponent(pedidoCurrentSession()); const base=location.href.replace(/[^/]*$/, "pedido-cliente.html"); pedidoClienteLink.textContent=`${base}?session=${session}`; }
+    function flashPedidoAlert(text="Cliente escribiendo pedido..."){ if(!pedidoLiveAlert) return; pedidoLiveAlert.textContent=text; pedidoLiveAlert.classList.add("on"); clearTimeout(pedidoAlertTimer); pedidoAlertTimer=setTimeout(()=>pedidoLiveAlert.classList.remove("on"),4500); }
+    function renderPedidoLive(){
+      if(!pedidoLiveBody) return;
+      const rows=(pedidoLiveRows||[]).slice().sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+      if(!rows.length){ pedidoLiveBody.innerHTML='<tr><td colspan="5" class="muted">Esperando pedido del cliente...</td></tr>'; if(pedidoLiveTotal) pedidoLiveTotal.textContent='0.00 kg'; if(pedidoLiveEstado){pedidoLiveEstado.textContent='Sin actividad'; pedidoLiveEstado.className='pedidoBadgeStatus';} return; }
+      const totalKg=rows.reduce((a,r)=>a+Number(r.kilos||0),0); const last=rows[rows.length-1]; const estado=last?.estado||'escribiendo';
+      if(pedidoLiveTotal) pedidoLiveTotal.textContent=`${to2(totalKg)} kg`;
+      if(pedidoLiveEstado){ pedidoLiveEstado.textContent=estado==='pasado'?'Pasado a nota':(estado==='enviado'?'Pedido enviado':'Cliente escribiendo'); pedidoLiveEstado.className=`pedidoBadgeStatus ${estado}`; }
+      pedidoLiveBody.innerHTML=rows.map(r=>{ const hora=r.created_at?new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}):'—'; const estadoTxt=r.estado||'escribiendo'; return `<tr><td>${hora}</td><td>${r.cliente_nombre||'Cliente bodega'}</td><td>${productoBonito(r.producto||'')}</td><td>${to2(r.kilos)}</td><td><span class="pedidoBadgeStatus ${estadoTxt}">${estadoTxt}</span></td></tr>`; }).join('');
+    }
+    async function loadPedidoLive(){
+      const session=pedidoCurrentSession();
+      const {data,error}=await sb.from(PEDIDO_LIVE_TABLE).select('*').eq('session_id',session).neq('estado','cancelado').order('created_at',{ascending:true});
+      if(error){ console.error(error); if(pedidoLiveBody) pedidoLiveBody.innerHTML='<tr><td colspan="5" class="danger">No se pudo leer pedidos_bodega_live. Revisa SQL/RLS.</td></tr>'; return; }
+      pedidoLiveRows=data||[]; renderPedidoLive();
+    }
+    function subscribePedidoLive(){
+      if(pedidoLiveChannel){ sb.removeChannel(pedidoLiveChannel); pedidoLiveChannel=null; }
+      const session=pedidoCurrentSession(); updatePedidoClienteLink(); loadPedidoLive();
+      pedidoLiveChannel=sb.channel(`pedido-bodega-${session}`).on('postgres_changes',{event:'*',schema:'public',table:PEDIDO_LIVE_TABLE,filter:`session_id=eq.${session}`},payload=>{ const row=payload.new||payload.old; flashPedidoAlert(row?.estado==='enviado'?'Cliente envió su pedido':'Cliente está capturando pedido...'); loadPedidoLive(); }).subscribe();
+    }
+    async function limpiarPedidoLive(){ const session=pedidoCurrentSession(); if(!confirm('¿Limpiar el pedido en vivo de esta sesión?')) return; const {error}=await sb.from(PEDIDO_LIVE_TABLE).update({estado:'cancelado'}).eq('session_id',session).neq('estado','pasado'); if(error){console.error(error);return alert('No se pudo limpiar el pedido live.');} await loadPedidoLive(); }
+    async function pasarPedidoANota(){
+      const nota=activeNota(); if(!nota) return alert('Primero crea o continúa una nota en el slot activo.');
+      const pendientes=(pedidoLiveRows||[]).filter(r=>r.estado!=='pasado'&&r.estado!=='cancelado'); if(!pendientes.length) return alert('No hay productos pendientes para pasar a la nota.');
+      const rows=pendientes.map(r=>{ const producto=productoBonito(r.producto||'Producto Libre'); const cantidad=Number(r.kilos||0); const precio=Number(PRECIOS[producto]||0); if(!producto||!Number.isFinite(cantidad)||cantidad<=0) return null; return {id:crypto.randomUUID(),nota_id:nota.id,producto,cantidad,piezas:null,precio,importe:cantidad*precio}; }).filter(Boolean);
+      if(!rows.length) return alert('El pedido no trae kilos válidos.');
+      const {error}=await sb.from('notas_detalle').insert(rows); if(error){console.error(error);return alert('No se pudo pasar el pedido a la nota.');}
+      const ids=pendientes.map(r=>r.id).filter(Boolean); if(ids.length) await sb.from(PEDIDO_LIVE_TABLE).update({estado:'pasado'}).in('id',ids);
+      await recalcNota(nota.id); await loadPedidoLive(); alert('✅ Pedido pasado a la nota activa.');
+    }
+    pedidoSessionId?.addEventListener('change', subscribePedidoLive);
+    pedidoSessionId?.addEventListener('keyup', ()=>updatePedidoClienteLink());
+    btnCopiarLinkPedido?.addEventListener('click', async()=>{ updatePedidoClienteLink(); try{ await navigator.clipboard.writeText(pedidoClienteLink.textContent); alert('✅ Link copiado'); }catch{ prompt('Copia este link:', pedidoClienteLink.textContent); } });
+    btnLimpiarPedidoLive?.addEventListener('click', limpiarPedidoLive);
+    btnPasarPedidoANota?.addEventListener('click', pasarPedidoANota);
+    window.addEventListener('load', ()=>{ setTimeout(()=>{ updatePedidoClienteLink(); subscribePedidoLive(); },1200); });
+
   </script>
 </body>
 </html>
