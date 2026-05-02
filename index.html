@@ -1150,22 +1150,23 @@ async function imprimirSilenciosoTexto(texto){
 
     notaObs.addEventListener('blur', saveNotaObs);
 
-    $('#btnContinuar').addEventListener('click', continuarNota);
-    $('#btnAgregar').addEventListener('click', addPartida);
+  $('#btnContinuar')?.addEventListener('click', continuarNota);
+$('#btnAgregar')?.addEventListener('click', addPartida);
 
-    $('#btnAgregarSebo').addEventListener('click', ()=> addFixedPartidaPG('Sebo', seboKg.value, seboPzas.value));
-    $('#btnAgregarHueso').addEventListener('click', ()=> addFixedPartidaPG('Hueso', huesoKg.value, huesoPzas.value));
+$('#btnAgregarSebo')?.addEventListener('click', ()=> addFixedPartidaPG('Sebo', seboKg.value, seboPzas.value));
+$('#btnAgregarHueso')?.addEventListener('click', ()=> addFixedPartidaPG('Hueso', huesoKg.value, huesoPzas.value));
 
-    $('#btnWA').addEventListener('click', ()=> activeNota() && waNota(activeNota().id));
-    $('#btnImprimir').addEventListener('click', ()=> activeNota() && imprimirNotaA4(activeNota().id));
-    $('#btnImprimir80').addEventListener('click', ()=> activeNota() && imprimirNota80mm(activeNota().id));
-    $('#btnCSV').addEventListener('click', ()=> activeNota() && exportNotaCSV(activeNota().id));
-    $('#btnCerrar').addEventListener('click', cerrarNota);
-    $('#btnNuevoCliente').addEventListener('click', addCliente);
-    $('#btnAbrirVentaBodega').addEventListener('click', abrirVentaBodegaDirecto);
-    $('#btnBandeja').addEventListener('click', loadBandeja);
-    $('#btnDiaA4').addEventListener('click', imprimirDiaA4);
-    $('#btnDiaCSV').addEventListener('click', exportDiaCSV);
+$('#btnWA')?.addEventListener('click', ()=> activeNota() && waNota(activeNota().id));
+$('#btnImprimir')?.addEventListener('click', ()=> activeNota() && imprimirNotaA4(activeNota().id));
+$('#btnImprimir80')?.addEventListener('click', ()=> activeNota() && imprimirNota80mm(activeNota().id));
+$('#btnCSV')?.addEventListener('click', ()=> activeNota() && exportNotaCSV(activeNota().id));
+$('#btnCerrar')?.addEventListener('click', cerrarNota);
+
+$('#btnNuevoCliente')?.addEventListener('click', addCliente);
+$('#btnAbrirVentaBodega')?.addEventListener('click', abrirVentaBodegaDirecto);
+$('#btnBandeja')?.addEventListener('click', loadBandeja);
+$('#btnDiaA4')?.addEventListener('click', imprimirDiaA4);
+$('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
 
     vbProcesarManual?.addEventListener('click', async ()=>{
       await processVentaBodegaText(vbPayload.value || '');
