@@ -2946,6 +2946,10 @@ async function obtenerDatosPeriodo(){
 
   const desde = $('#periodoDesde').value;
   const hasta = $('#periodoHasta').value;
+  const productoFiltro =
+  normalizeKey(
+    $('#periodoProducto')?.value || ''
+  );
 
   if(!desde || !hasta){
     alert('Selecciona fechas');
@@ -2996,14 +3000,35 @@ async function obtenerDatosPeriodo(){
     alert('No se pudo cargar detalle');
     return null;
   }
+  let detalleFiltrado = det || [];
 
-  return {
-    desde,
-    hasta,
-    notas: notas || [],
-    det: det || []
-  };
+if(productoFiltro){
+
+  detalleFiltrado =
+    detalleFiltrado.filter(d =>
+
+      normalizeKey(d.producto)
+      === productoFiltro
+
+    );
+
+  if(!detalleFiltrado.length){
+
+    alert(
+      'No hay movimientos de ese producto en el periodo seleccionado.'
+    );
+
+    return null;
+  }
 }
+
+ return {
+  desde,
+  hasta,
+  productoFiltro: $('#periodoProducto')?.value || '',
+  notas: notas || [],
+  det: detalleFiltrado
+};
 
 async function imprimirPeriodoA4(){
 
