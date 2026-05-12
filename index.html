@@ -273,7 +273,7 @@
 
             <div>
               <label>Kilos</label>
-              <input id="pKg" type="number" min="0" step="0.01" value="1" />
+              <input id="pKg" type="number" min="0" step="0.01"  />
 
               <div class="flex" style="margin-top:8px; gap:8px">
                 <button type="button" class="btn btn-ghost" id="btnPeso">📥 Tomar peso</button>
@@ -1592,7 +1592,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       }
 
       pProducto.value = '';
-      if(!rtBascula?.checked) pKg.value = '1';
+      if(!rtBascula?.checked) pKg.value = '';
       pPzas.value = '';
       prefPrecio();
       clearDirty();
