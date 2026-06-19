@@ -159,23 +159,6 @@
     }
     .menuPanel button:hover{ background:#f6f7f8; }
     .menuPanel button.danger{ border-color:#fee2e2; color:#b91c1c; }
-
-    /* ===== Pedido en vivo Cliente Bodega ===== */
-    .pedidoLiveGrid{display:grid;grid-template-columns:.9fr 1.1fr;gap:16px;align-items:start}
-    .pedidoLiveTop{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
-    .pedidoLiveAlert{display:none;padding:8px 10px;border-radius:999px;background:#eef7f0;color:#0a7a3b;border:1px solid #cde7d4;font-weight:800;font-size:13px}
-    .pedidoLiveAlert.on{display:inline-flex;align-items:center;gap:6px;animation:pulseLive 1.2s infinite}
-    @keyframes pulseLive{0%,100%{opacity:.75}50%{opacity:1}}
-    .pedidoSessionBox{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:12px}
-    .pedidoSessionBox code{display:block;background:#111827;color:#fff;border-radius:10px;padding:10px;margin-top:8px;white-space:nowrap;overflow:auto;font-size:12px}
-    .pedidoMini{font-size:12px;color:#64748b;margin-top:4px}
-    .pedidoTotalBox{font-weight:900;font-size:16px;color:#0a7a3b}
-    .pedidoBadgeStatus{display:inline-block;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#111;font-size:12px;font-weight:800}
-    .pedidoBadgeStatus.escribiendo{background:#eef7f0;color:#0a7a3b}
-    .pedidoBadgeStatus.enviado{background:#eff6ff;color:#1d4ed8}
-    .pedidoBadgeStatus.pasado{background:#f5f3ff;color:#6d28d9}
-    @media(max-width:900px){.pedidoLiveGrid{grid-template-columns:1fr}}
-
   </style>
 </head>
 
@@ -290,7 +273,7 @@
 
             <div>
               <label>Kilos</label>
-              <input id="pKg" type="number" min="0" step="0.01" value="1" />
+              <input id="pKg" type="number" min="0" step="0.01"  />
 
               <div class="flex" style="margin-top:8px; gap:8px">
                 <button type="button" class="btn btn-ghost" id="btnPeso">📥 Tomar peso</button>
@@ -480,80 +463,8 @@
       </div>
     </section>
 
-
-    <section class="card" id="pedidoBodegaMonitor">
-      <div class="pedidoLiveTop">
-        <h2 style="margin:0">🟢 Pedido en vivo del cliente en bodega</h2>
-        <span id="pedidoLiveAlert" class="pedidoLiveAlert">Cliente escribiendo pedido...</span>
-        <span class="pill right">Tiempo real Supabase</span>
-      </div>
-      <div class="pedidoLiveGrid">
-        <div class="pedidoSessionBox">
-          <label>Clave / sesión del pedido</label>
-          <input id="pedidoSessionId" placeholder="Ej. bodega-hoy" value="bodega-hoy" />
-          <div class="pedidoMini">Usa la misma clave en la página del cliente. Puedes poner algo como: josue-hoy, cliente1, mostrador.</div>
-          <label>Link para el cliente</label>
-          <code id="pedidoClienteLink">pedido-cliente.html?session=bodega-hoy</code>
-          <div class="flex" style="margin-top:10px">
-            <button class="btn btn-ghost" id="btnCopiarLinkPedido" type="button">Copiar link</button>
-            <button class="btn btn-ghost" id="btnLimpiarPedidoLive" type="button">Limpiar pedido live</button>
-            <button class="btn btn-primary" id="btnPasarPedidoANota" type="button">Pasar pedido a nota activa</button>
-          </div>
-          <div class="warnBox" style="margin-top:10px">Esta sección no afecta la nota hasta que presiones <b>Pasar pedido a nota activa</b>.</div>
-        </div>
-        <div>
-          <div class="flex"><span class="pedidoBadgeStatus" id="pedidoLiveEstado">Sin actividad</span><span class="pedidoTotalBox right" id="pedidoLiveTotal">0.00 kg</span></div>
-          <table><thead><tr><th>Hora</th><th>Cliente</th><th>Producto</th><th>Kg</th><th>Estado</th></tr></thead><tbody id="pedidoLiveBody"><tr><td colspan="5" class="muted">Esperando pedido del cliente...</td></tr></tbody></table>
-        </div>
-      </div>
-    </section>
-
     <section class="card">
       <h2>📄 Reporte diario GENERAL (todos los clientes)</h2>
-      <section class="card">
-  <h2>📊 Reporte general por periodo</h2>
-
- <div class="row-3" style="grid-template-columns:1fr 1fr 1fr 1fr">
-    <div>
-      <label>Desde</label>
-      <input id="periodoDesde" type="date" />
-    </div>
-
-    <div>
-      <label>Hasta</label>
-      <input id="periodoHasta" type="date" />
-    </div>
-
-    <div>
-      <label>Periodo rápido</label>
-      <select id="periodoRapido">
-        <option value="">Personalizado</option>
-        <option value="semana">Esta semana</option>
-        <option value="mes">Este mes</option>
-      </select>
-    </div>
-   <div>
-  <label>Filtrar producto</label>
-  <input id="periodoProducto" list="catProductos" placeholder="Todos los productos" />
-</div>
-   <div>
-  <label>Filtrar producto</label>
-  <input id="periodoProducto" list="catProductos" placeholder="Todos los productos" />
-</div>
-  </div>
-
-  <div class="flex" style="margin-top:10px">
-    <button class="btn btn-primary" id="btnPeriodoA4" type="button">
-      Imprimir reporte
-    </button>
-
-    <button class="btn btn-ghost" id="btnPeriodoCSV" type="button">
-      Descargar CSV
-    </button>
-
-    <span class="pill right" id="periodoResumen">—</span>
-  </div>
-</section>
 
       <div class="row">
         <div>
@@ -573,14 +484,72 @@
     </section>
 
     <section class="card">
-      <div class="flex">
-        <button class="btn btn-ghost" id="btnWA" type="button">WhatsApp Cuenta</button>
-        <button class="btn btn-ghost" id="btnImprimir" type="button">Imprimir A4</button>
-        <button class="btn btn-ghost" id="btnImprimir80" type="button">Imprimir 80mm</button>
-        <button class="btn btn-ghost" id="btnCSV" type="button">Exportar CSV</button>
-        <button class="btn btn-ghost danger right" id="btnCerrar" type="button">Cerrar Nota</button>
+      <h2>📊 Resumen mensual de kilos netos</h2>
+      <p class="muted" style="margin-top:0">Consulta cuántos kilos netos se vendieron en un mes, por producto y por cliente.</p>
+
+      <div class="row-3">
+        <div>
+          <label>Mes</label>
+          <input id="mesKilos" type="month" />
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" id="btnMesKilos" type="button">Ver kilos del mes</button>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn btn-ghost" id="btnMesKilosCSV" type="button">CSV mensual</button>
+        </div>
+      </div>
+
+      <div class="helperBadges" id="mesKilosKPIs">
+        <span class="pill">Kg netos: 0.00</span>
+        <span class="pill">Notas: 0</span>
+        <span class="pill">Clientes: 0</span>
+        <span class="pill">Importe: $0.00</span>
+      </div>
+
+      <div class="row" style="align-items:start;margin-top:12px">
+        <div>
+          <h3 style="margin:0 0 8px;font-size:15px">Kilos por producto</h3>
+          <div class="bandejaWrap" style="max-height:38vh">
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Kg netos</th>
+                  <th>Pzas</th>
+                  <th>Importe</th>
+                </tr>
+              </thead>
+              <tbody id="mesProductoBody">
+                <tr><td colspan="4" class="muted">Selecciona un mes y presiona Ver kilos del mes.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 8px;font-size:15px">Kilos por cliente</h3>
+          <div class="bandejaWrap" style="max-height:38vh">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Kg netos</th>
+                  <th>Importe</th>
+                </tr>
+              </thead>
+              <tbody id="mesClienteBody">
+                <tr><td colspan="3" class="muted">Sin datos cargados.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
+
+   
   </main>
 
   <div id="printArea" style="display:none"></div>
@@ -1205,6 +1174,11 @@ async function imprimirSilenciosoTexto(texto){
     const diaFecha = $('#diaFecha');
     const diaResumen = $('#diaResumen');
 
+    const mesKilos = $('#mesKilos');
+    const mesKilosKPIs = $('#mesKilosKPIs');
+    const mesProductoBody = $('#mesProductoBody');
+    const mesClienteBody = $('#mesClienteBody');
+
     const notaObs = $('#notaObs');
 
     let vbBusy = false;
@@ -1213,6 +1187,7 @@ async function imprimirSilenciosoTexto(texto){
     notaVence.value = addDays(notaFecha.value, notaDias.value);
     bandejaFecha.value = todayISO();
     diaFecha.value = todayISO();
+    if(mesKilos) mesKilos.value = todayISO().slice(0,7);
 
     exitGuardToggle.checked = exitGuardEnabled;
     exitGuardToggle.addEventListener('change', ()=>{
@@ -1247,26 +1222,25 @@ async function imprimirSilenciosoTexto(texto){
 
     notaObs.addEventListener('blur', saveNotaObs);
 
-    $('#btnContinuar').addEventListener('click', continuarNota);
-    $('#btnAgregar').addEventListener('click', addPartida);
+  $('#btnContinuar')?.addEventListener('click', continuarNota);
+$('#btnAgregar')?.addEventListener('click', addPartida);
 
-    $('#btnAgregarSebo').addEventListener('click', ()=> addFixedPartidaPG('Sebo', seboKg.value, seboPzas.value));
-    $('#btnAgregarHueso').addEventListener('click', ()=> addFixedPartidaPG('Hueso', huesoKg.value, huesoPzas.value));
+$('#btnAgregarSebo')?.addEventListener('click', ()=> addFixedPartidaPG('Sebo', seboKg.value, seboPzas.value));
+$('#btnAgregarHueso')?.addEventListener('click', ()=> addFixedPartidaPG('Hueso', huesoKg.value, huesoPzas.value));
 
-    $('#btnWA').addEventListener('click', ()=> activeNota() && waNota(activeNota().id));
-    $('#btnImprimir').addEventListener('click', ()=> activeNota() && imprimirNotaA4(activeNota().id));
-    $('#btnImprimir80').addEventListener('click', ()=> activeNota() && imprimirNota80mm(activeNota().id));
-    $('#btnCSV').addEventListener('click', ()=> activeNota() && exportNotaCSV(activeNota().id));
-    $('#btnCerrar').addEventListener('click', cerrarNota);
-    $('#btnNuevoCliente').addEventListener('click', addCliente);
-    $('#btnAbrirVentaBodega').addEventListener('click', abrirVentaBodegaDirecto);
-    $('#btnBandeja').addEventListener('click', loadBandeja);
-    $('#btnDiaA4').addEventListener('click', imprimirDiaA4);
-    $('#btnDiaCSV').addEventListener('click', exportDiaCSV);
-    $('#btnPeriodoA4')?.addEventListener('click', imprimirPeriodoA4);
-    $('#btnPeriodoCSV')?.addEventListener('click', exportPeriodoCSV);
+$('#btnWA')?.addEventListener('click', ()=> activeNota() && waNota(activeNota().id));
+$('#btnImprimir')?.addEventListener('click', ()=> activeNota() && imprimirNotaA4(activeNota().id));
+$('#btnImprimir80')?.addEventListener('click', ()=> activeNota() && imprimirNota80mm(activeNota().id));
+$('#btnCSV')?.addEventListener('click', ()=> activeNota() && exportNotaCSV(activeNota().id));
+$('#btnCerrar')?.addEventListener('click', cerrarNota);
 
-$('#periodoRapido')?.addEventListener('change', aplicarPeriodoRapido);
+$('#btnNuevoCliente')?.addEventListener('click', addCliente);
+$('#btnAbrirVentaBodega')?.addEventListener('click', abrirVentaBodegaDirecto);
+$('#btnBandeja')?.addEventListener('click', loadBandeja);
+$('#btnDiaA4')?.addEventListener('click', imprimirDiaA4);
+$('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
+$('#btnMesKilos')?.addEventListener('click', loadResumenMensualKilos);
+$('#btnMesKilosCSV')?.addEventListener('click', exportResumenMensualCSV);
 
     vbProcesarManual?.addEventListener('click', async ()=>{
       await processVentaBodegaText(vbPayload.value || '');
@@ -1357,8 +1331,6 @@ $('#periodoRapido')?.addEventListener('change', aplicarPeriodoRapido);
     });
 
     window.addEventListener('load', async ()=>{
-      $('#periodoDesde').value = todayISO().slice(0,8) + '01';
-      $('#periodoHasta').value = todayISO();
       const hiddenDiv = document.createElement('div');
       hiddenDiv.id = 'tempQrReaderHidden';
       hiddenDiv.style.display = 'none';
@@ -1694,7 +1666,7 @@ $('#periodoRapido')?.addEventListener('change', aplicarPeriodoRapido);
       }
 
       pProducto.value = '';
-      if(!rtBascula?.checked) pKg.value = '1';
+      if(!rtBascula?.checked) pKg.value = '';
       pPzas.value = '';
       prefPrecio();
       clearDirty();
@@ -2736,6 +2708,164 @@ if(USAR_IMPRESION_SILENCIOSA){
       setTimeout(() => { win.print(); }, 400);
     }
 
+
+    function getMonthBounds(monthValue){
+      const ym = monthValue || todayISO().slice(0,7);
+      const [y, m] = ym.split('-').map(Number);
+      const start = `${y}-${String(m).padStart(2,'0')}-01`;
+      const endDate = new Date(y, m, 0);
+      const end = `${y}-${String(m).padStart(2,'0')}-${String(endDate.getDate()).padStart(2,'0')}`;
+      return { ym, start, end };
+    }
+
+    async function buildResumenMensual(){
+      const { ym, start, end } = getMonthBounds(mesKilos?.value || todayISO().slice(0,7));
+
+      const { data: notas, error: notasError } = await sb
+        .from('notas_credito')
+        .select('id, folio, fecha, clientes(nombre)')
+        .gte('fecha', start)
+        .lte('fecha', end)
+        .order('fecha');
+
+      if(notasError){
+        console.error(notasError);
+        throw new Error('No se pudieron leer las notas del mes.');
+      }
+
+      const ids = (notas || []).map(n => n.id);
+      if(!ids.length){
+        return { ym, start, end, notas: [], detalles: [], productos: [], clientes: [], totalKg:0, totalImporte:0 };
+      }
+
+      const { data: det, error: detError } = await sb
+        .from('notas_detalle')
+        .select('nota_id, producto, cantidad, piezas, precio, importe, created_at')
+        .in('nota_id', ids)
+        .order('created_at');
+
+      if(detError){
+        console.error(detError);
+        throw new Error('No se pudieron leer los detalles del mes.');
+      }
+
+      const notasMap = Object.fromEntries((notas || []).map(n => [n.id, n]));
+      const porProducto = {};
+      const porCliente = {};
+      let totalKg = 0;
+      let totalImporte = 0;
+
+      (det || []).forEach(d => {
+        const nota = notasMap[d.nota_id] || {};
+        const producto = productoBonito(d.producto || 'Sin producto');
+        const cliente = productoBonito(nota.clientes?.nombre || '—');
+        const kg = Number(d.cantidad || 0);
+        const importe = Number(d.importe || 0);
+        const pzas = d.piezas != null && d.piezas !== '' ? Number(d.piezas || 0) : null;
+
+        totalKg += kg;
+        totalImporte += importe;
+
+        if(!porProducto[producto]) porProducto[producto] = { producto, kg:0, pzas:0, tienePzas:false, importe:0 };
+        porProducto[producto].kg += kg;
+        porProducto[producto].importe += importe;
+        if(pzas != null){
+          porProducto[producto].pzas += pzas;
+          porProducto[producto].tienePzas = true;
+        }
+
+        if(!porCliente[cliente]) porCliente[cliente] = { cliente, kg:0, importe:0 };
+        porCliente[cliente].kg += kg;
+        porCliente[cliente].importe += importe;
+      });
+
+      const productos = Object.values(porProducto).sort((a,b)=> b.kg - a.kg);
+      const clientes = Object.values(porCliente).sort((a,b)=> b.kg - a.kg);
+
+      return { ym, start, end, notas: notas || [], detalles: det || [], productos, clientes, totalKg, totalImporte };
+    }
+
+    async function loadResumenMensualKilos(){
+      try{
+        const res = await buildResumenMensual();
+        const clientesUnicos = new Set((res.notas || []).map(n => n.clientes?.nombre || '—'));
+
+        if(mesKilosKPIs){
+          mesKilosKPIs.innerHTML = `
+            <span class="pill">Kg netos: ${to2(res.totalKg)}</span>
+            <span class="pill">Notas: ${(res.notas || []).length}</span>
+            <span class="pill">Clientes: ${clientesUnicos.size}</span>
+            <span class="pill">Importe: $${to2(res.totalImporte)}</span>
+            <span class="pill">Periodo: ${res.start} a ${res.end}</span>
+          `;
+        }
+
+        if(mesProductoBody){
+          mesProductoBody.innerHTML = res.productos.length
+            ? res.productos.map(r => `
+                <tr>
+                  <td>${productoBonito(r.producto)}</td>
+                  <td><b>${to2(r.kg)}</b></td>
+                  <td>${r.tienePzas ? Math.round(r.pzas) : ''}</td>
+                  <td>$${to2(r.importe)}</td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="4" class="muted">No hay kilos vendidos en este mes.</td></tr>';
+        }
+
+        if(mesClienteBody){
+          mesClienteBody.innerHTML = res.clientes.length
+            ? res.clientes.map(r => `
+                <tr>
+                  <td>${productoBonito(r.cliente)}</td>
+                  <td><b>${to2(r.kg)}</b></td>
+                  <td>$${to2(r.importe)}</td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="3" class="muted">No hay clientes con ventas en este mes.</td></tr>';
+        }
+      }catch(err){
+        console.error(err);
+        alert(err?.message || 'No se pudo cargar el resumen mensual.');
+      }
+    }
+
+    async function exportResumenMensualCSV(){
+      try{
+        const res = await buildResumenMensual();
+        if(!res.detalles.length) return alert('No hay kilos vendidos en este mes.');
+
+        const notasMap = Object.fromEntries((res.notas || []).map(n => [n.id, n]));
+        const head = ['Cliente','Folio','Fecha','Hora','Producto','Kg netos','Piezas','Precio','Importe'];
+        const rows = (res.detalles || []).map(d => {
+          const n = notasMap[d.nota_id] || {};
+          return [
+            productoBonito(n.clientes?.nombre || ''),
+            n.folio || '',
+            n.fecha || '',
+            new Date(d.created_at).toLocaleTimeString(),
+            productoBonito(d.producto),
+            to2(d.cantidad),
+            (d.piezas != null ? d.piezas : ''),
+            to2(d.precio),
+            to2(d.importe)
+          ];
+        });
+
+        const csv = [head, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
+        const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `kilos_netos_${res.ym}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }catch(err){
+        console.error(err);
+        alert(err?.message || 'No se pudo exportar el resumen mensual.');
+      }
+    }
+
     async function exportDiaCSV(){
       const f = diaFecha.value || todayISO();
 
@@ -2847,606 +2977,6 @@ if(USAR_IMPRESION_SILENCIOSA){
       await loadBandeja();
       alert('✅ Nota cerrada');
     }
-
-    /* ===== Pedido en vivo Cliente Bodega ===== */
-    const PEDIDO_LIVE_TABLE = "pedidos_bodega_live";
-    let pedidoLiveChannel = null, pedidoLiveRows = [], pedidoAlertTimer = null;
-    const pedidoSessionId = document.getElementById("pedidoSessionId");
-    const pedidoClienteLink = document.getElementById("pedidoClienteLink");
-    const pedidoLiveAlert = document.getElementById("pedidoLiveAlert");
-    const pedidoLiveBody = document.getElementById("pedidoLiveBody");
-    const pedidoLiveTotal = document.getElementById("pedidoLiveTotal");
-    const pedidoLiveEstado = document.getElementById("pedidoLiveEstado");
-    const btnCopiarLinkPedido = document.getElementById("btnCopiarLinkPedido");
-    const btnLimpiarPedidoLive = document.getElementById("btnLimpiarPedidoLive");
-    const btnPasarPedidoANota = document.getElementById("btnPasarPedidoANota");
-    function pedidoCurrentSession(){ return String(pedidoSessionId?.value || "bodega-hoy").trim() || "bodega-hoy"; }
-    function updatePedidoClienteLink(){ if(!pedidoClienteLink) return; const session=encodeURIComponent(pedidoCurrentSession()); const base=location.href.replace(/[^/]*$/, "pedido-cliente.html"); pedidoClienteLink.textContent=`${base}?session=${session}`; }
-    function flashPedidoAlert(text="Cliente escribiendo pedido..."){ if(!pedidoLiveAlert) return; pedidoLiveAlert.textContent=text; pedidoLiveAlert.classList.add("on"); clearTimeout(pedidoAlertTimer); pedidoAlertTimer=setTimeout(()=>pedidoLiveAlert.classList.remove("on"),4500); }
-    function renderPedidoLive(){
-      if(!pedidoLiveBody) return;
-      const rows=(pedidoLiveRows||[]).slice().sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
-      if(!rows.length){ pedidoLiveBody.innerHTML='<tr><td colspan="5" class="muted">Esperando pedido del cliente...</td></tr>'; if(pedidoLiveTotal) pedidoLiveTotal.textContent='0.00 kg'; if(pedidoLiveEstado){pedidoLiveEstado.textContent='Sin actividad'; pedidoLiveEstado.className='pedidoBadgeStatus';} return; }
-      const totalKg=rows.reduce((a,r)=>a+Number(r.kilos||0),0); const last=rows[rows.length-1]; const estado=last?.estado||'escribiendo';
-      if(pedidoLiveTotal) pedidoLiveTotal.textContent=`${to2(totalKg)} kg`;
-      if(pedidoLiveEstado){ pedidoLiveEstado.textContent=estado==='pasado'?'Pasado a nota':(estado==='enviado'?'Pedido enviado':'Cliente escribiendo'); pedidoLiveEstado.className=`pedidoBadgeStatus ${estado}`; }
-      pedidoLiveBody.innerHTML=rows.map(r=>{ const hora=r.created_at?new Date(r.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}):'—'; const estadoTxt=r.estado||'escribiendo'; return `<tr><td>${hora}</td><td>${r.cliente_nombre||'Cliente bodega'}</td><td>${productoBonito(r.producto||'')}</td><td>${to2(r.kilos)}</td><td><span class="pedidoBadgeStatus ${estadoTxt}">${estadoTxt}</span></td></tr>`; }).join('');
-    }
-    async function loadPedidoLive(){
-      const session=pedidoCurrentSession();
-      const {data,error}=await sb.from(PEDIDO_LIVE_TABLE).select('*').eq('session_id',session).neq('estado','cancelado').order('created_at',{ascending:true});
-      if(error){ console.error(error); if(pedidoLiveBody) pedidoLiveBody.innerHTML='<tr><td colspan="5" class="danger">No se pudo leer pedidos_bodega_live. Revisa SQL/RLS.</td></tr>'; return; }
-      pedidoLiveRows=data||[]; renderPedidoLive();
-    }
-    function subscribePedidoLive(){
-      if(pedidoLiveChannel){ sb.removeChannel(pedidoLiveChannel); pedidoLiveChannel=null; }
-      const session=pedidoCurrentSession(); updatePedidoClienteLink(); loadPedidoLive();
-      pedidoLiveChannel=sb.channel(`pedido-bodega-${session}`).on('postgres_changes',{event:'*',schema:'public',table:PEDIDO_LIVE_TABLE,filter:`session_id=eq.${session}`},payload=>{ const row=payload.new||payload.old; flashPedidoAlert(row?.estado==='enviado'?'Cliente envió su pedido':'Cliente está capturando pedido...'); loadPedidoLive(); }).subscribe();
-    }
-    async function limpiarPedidoLive(){ const session=pedidoCurrentSession(); if(!confirm('¿Limpiar el pedido en vivo de esta sesión?')) return; const {error}=await sb.from(PEDIDO_LIVE_TABLE).update({estado:'cancelado'}).eq('session_id',session).neq('estado','pasado'); if(error){console.error(error);return alert('No se pudo limpiar el pedido live.');} await loadPedidoLive(); }
-    async function pasarPedidoANota(){
-      const nota=activeNota(); if(!nota) return alert('Primero crea o continúa una nota en el slot activo.');
-      const pendientes=(pedidoLiveRows||[]).filter(r=>r.estado!=='pasado'&&r.estado!=='cancelado'); if(!pendientes.length) return alert('No hay productos pendientes para pasar a la nota.');
-      const rows=pendientes.map(r=>{ const producto=productoBonito(r.producto||'Producto Libre'); const cantidad=Number(r.kilos||0); const precio=Number(PRECIOS[producto]||0); if(!producto||!Number.isFinite(cantidad)||cantidad<=0) return null; return {id:crypto.randomUUID(),nota_id:nota.id,producto,cantidad,piezas:null,precio,importe:cantidad*precio}; }).filter(Boolean);
-      if(!rows.length) return alert('El pedido no trae kilos válidos.');
-      const {error}=await sb.from('notas_detalle').insert(rows); if(error){console.error(error);return alert('No se pudo pasar el pedido a la nota.');}
-      const ids=pendientes.map(r=>r.id).filter(Boolean); if(ids.length) await sb.from(PEDIDO_LIVE_TABLE).update({estado:'pasado'}).in('id',ids);
-      await recalcNota(nota.id); await loadPedidoLive(); alert('✅ Pedido pasado a la nota activa.');
-    }
-    pedidoSessionId?.addEventListener('change', subscribePedidoLive);
-    pedidoSessionId?.addEventListener('keyup', ()=>updatePedidoClienteLink());
-    btnCopiarLinkPedido?.addEventListener('click', async()=>{ updatePedidoClienteLink(); try{ await navigator.clipboard.writeText(pedidoClienteLink.textContent); alert('✅ Link copiado'); }catch{ prompt('Copia este link:', pedidoClienteLink.textContent); } });
-    btnLimpiarPedidoLive?.addEventListener('click', limpiarPedidoLive);
-    btnPasarPedidoANota?.addEventListener('click', pasarPedidoANota);
-    window.addEventListener('load', ()=>{ setTimeout(()=>{ updatePedidoClienteLink(); subscribePedidoLive(); },1200); });
-    function aplicarPeriodoRapido(){
-
-  const tipo = $('#periodoRapido').value;
-
-  const hoy = new Date();
-
-  const z = hoy.getTimezoneOffset() * 60000;
-
-  if(tipo === 'mes'){
-
-    const inicio = new Date(
-      hoy.getFullYear(),
-      hoy.getMonth(),
-      1
-    );
-
-    $('#periodoDesde').value =
-      new Date(inicio - z)
-        .toISOString()
-        .slice(0,10);
-
-    $('#periodoHasta').value = todayISO();
-  }
-
-  if(tipo === 'semana'){
-
-    const d = new Date();
-
-    const dia = d.getDay();
-
-    const diff = dia === 0 ? 6 : dia - 1;
-
-    d.setDate(d.getDate() - diff);
-
-    $('#periodoDesde').value =
-      new Date(d - z)
-        .toISOString()
-        .slice(0,10);
-
-    $('#periodoHasta').value = todayISO();
-  }
-}
-
-async function obtenerDatosPeriodo(){
-
-  const desde = $('#periodoDesde').value;
-  const hasta = $('#periodoHasta').value;
-  const productoFiltro =
-  normalizeKey(
-    $('#periodoProducto')?.value || ''
-  );
-
-  if(!desde || !hasta){
-    alert('Selecciona fechas');
-    return null;
-  }
-
-  const { data:notas, error } = await sb
-    .from('notas_credito')
-    .select(`
-      id,
-      folio,
-      fecha,
-      clientes(nombre)
-    `)
-    .gte('fecha', desde)
-    .lte('fecha', hasta)
-    .order('fecha');
-
-  if(error){
-    console.error(error);
-    alert('No se pudieron cargar notas');
-    return null;
-  }
-
-  const ids = (notas || []).map(x=>x.id);
-
-  if(!ids.length){
-    alert('No hay información');
-    return null;
-  }
-
-  const { data:det, error:errDet } = await sb
-    .from('notas_detalle')
-    .select(`
-      nota_id,
-      producto,
-      cantidad,
-      piezas,
-      precio,
-      importe,
-      created_at
-    `)
-    .in('nota_id', ids)
-    .order('created_at');
-
-  if(errDet){
-    console.error(errDet);
-    alert('No se pudo cargar detalle');
-    return null;
-  }
-  let detalleFiltrado = det || [];
-
-if(productoFiltro){
-
-  detalleFiltrado =
-    detalleFiltrado.filter(d =>
-
-      normalizeKey(d.producto)
-      === productoFiltro
-
-    );
-
-  if(!detalleFiltrado.length){
-
-    alert(
-      'No hay movimientos de ese producto en el periodo seleccionado.'
-    );
-
-    return null;
-  }
-}
-
- return {
-  desde,
-  hasta,
-  productoFiltro: $('#periodoProducto')?.value || '',
-  notas: notas || [],
-  det: detalleFiltrado
-};
-}
-async function imprimirPeriodoA4(){
-
-  const pack = await obtenerDatosPeriodo();
-
-  if(!pack) return;
-
-  const {
-    desde,
-    hasta,
-    notas,
-    det
-  } = pack;
-
-  const byClient = {};
-  const resumenGeneral = {};
-
-  det.forEach(d=>{
-
-    const nota =
-      notas.find(n=>n.id === d.nota_id);
-
-    const cliente = productoBonito(
-      nota?.clientes?.nombre || 'Sin cliente'
-    );
-
-    const producto = productoBonito(
-      d.producto || 'Sin producto'
-    );
-
-    if(!byClient[cliente]){
-      byClient[cliente] = {
-        kg:0,
-        piezas:0,
-        importe:0,
-        productos:{}
-      };
-    }
-
-    if(!byClient[cliente].productos[producto]){
-      byClient[cliente].productos[producto] = {
-        kg:0,
-        piezas:0,
-        tienePzas:false,
-        importe:0
-      };
-    }
-
-    if(!resumenGeneral[producto]){
-      resumenGeneral[producto] = {
-        kg:0,
-        piezas:0,
-        tienePzas:false,
-        importe:0
-      };
-    }
-
-    const kg = Number(d.cantidad || 0);
-
-    const pzas =
-      d.piezas != null
-      ? Number(d.piezas || 0)
-      : 0;
-
-    const importe =
-      Number(d.importe || 0);
-
-    byClient[cliente].kg += kg;
-    byClient[cliente].importe += importe;
-
-    byClient[cliente]
-      .productos[producto]
-      .kg += kg;
-
-    byClient[cliente]
-      .productos[producto]
-      .importe += importe;
-
-    resumenGeneral[producto].kg += kg;
-    resumenGeneral[producto].importe += importe;
-
-    if(d.piezas != null){
-
-      byClient[cliente].piezas += pzas;
-
-      byClient[cliente]
-        .productos[producto]
-        .piezas += pzas;
-
-      byClient[cliente]
-        .productos[producto]
-        .tienePzas = true;
-
-      resumenGeneral[producto].piezas += pzas;
-      resumenGeneral[producto].tienePzas = true;
-    }
-  });
-
-  const clientesOrdenados =
-    Object.entries(byClient)
-      .sort((a,b)=> b[1].kg - a[1].kg);
-
-  const productosOrdenados =
-    Object.entries(resumenGeneral)
-      .sort((a,b)=> b[1].kg - a[1].kg);
-
-  const totalKg = det.reduce(
-    (a,b)=> a + Number(b.cantidad || 0),
-    0
-  );
-
-  const totalImporte = det.reduce(
-    (a,b)=> a + Number(b.importe || 0),
-    0
-  );
-
-  $('#periodoResumen').textContent =
-    `Clientes: ${clientesOrdenados.length} · Kg: ${to2(totalKg)} · Total: $${to2(totalImporte)}`;
-
-  let html = `
-  <html>
-  <head>
-  <title>Reporte periodo</title>
-
-  <style>
-  @page{
-    size:letter landscape;
-    margin:8mm;
-  }
-
-  body{
-    font-family:Arial, Helvetica, sans-serif;
-    font-size:10px;
-    color:#111;
-    margin:0;
-    background:#fff;
-  }
-
-  h1{
-    margin:0 0 6px;
-    font-size:20px;
-    color:#0a7a3b;
-    border-bottom:3px solid #0a7a3b;
-    padding-bottom:6px;
-  }
-
-  h3{
-    margin:12px 0 5px;
-    padding:6px 8px;
-    background:#0a7a3b;
-    color:#fff;
-    font-size:12px;
-    border-radius:6px;
-  }
-
-  .meta{
-    margin:8px 0 12px;
-    padding:8px;
-    background:#eef7f0;
-    border:1px solid #cde7d4;
-    border-radius:8px;
-    font-size:11px;
-  }
-
-  .box{
-    border:1px solid #cde7d4;
-    border-radius:10px;
-    padding:10px;
-    margin-bottom:12px;
-    background:#f8fcf9;
-  }
-
-  .box h2{
-    margin:0 0 8px;
-    font-size:14px;
-    color:#0a7a3b;
-  }
-
-  table{
-    width:100%;
-    border-collapse:collapse;
-    margin-bottom:10px;
-    page-break-inside:avoid;
-  }
-
-  th{
-    background:#0a7a3b;
-    color:#fff;
-    padding:6px;
-    font-size:10px;
-    border:1px solid #0a7a3b;
-  }
-
-  td{
-    border:1px solid #d1d5db;
-    padding:5px 6px;
-    font-size:10px;
-  }
-
-  tbody tr:nth-child(even){
-    background:#f8fafc;
-  }
-
-  .right{
-    text-align:right;
-    font-weight:700;
-  }
-
-  .cliente-block{
-    page-break-inside:avoid;
-    break-inside:avoid;
-    margin-bottom:10px;
-  }
-
-  .cliente-total{
-    font-size:10px;
-    margin:0 0 4px;
-    color:#374151;
-    font-weight:700;
-  }
-</style>
-  </head>
-
-  <body>
-
-  <h1>
-  Reporte general
-  </h1>
-
-  <div>
-  Desde: ${desde}
-  —
-  Hasta: ${hasta}
-  </div>
-
-  <br>
-
-  <table>
-
-  <thead>
-  <tr>
-  <th>Producto</th>
-  <th class="right">Kg</th>
-  <th class="right">Pzas</th>
-  <th class="right">Importe</th>
-  </tr>
-  </thead>
-
-  <tbody>
-
-  ${productosOrdenados.map(([prod,r])=>`
-
-  <tr>
-
-  <td>${prod}</td>
-
-  <td class="right">
-  ${to2(r.kg)}
-  </td>
-
-  <td class="right">
-  ${r.tienePzas ? Math.round(r.piezas) : ''}
-  </td>
-
-  <td class="right">
-  $${to2(r.importe)}
-  </td>
-
-  </tr>
-
-  `).join('')}
-
-  </tbody>
-  </table>
-
-  ${clientesOrdenados.map(([cliente,info])=>`
-
-<div class="cliente-block">
-  <h3>${cliente}</h3>
-  <div class="cliente-total">
-    Kg total cliente: ${to2(info.kg)} · Total: $${to2(info.importe)}
-  </div>
-
-  <table>
-
- 
-
-  <thead>
-  <tr>
-  <th>Producto</th>
-  <th class="right">Kg</th>
-  <th class="right">Pzas</th>
-  <th class="right">Importe</th>
-  </tr>
-  </thead>
-
-  <tbody>
-
-  ${Object.entries(info.productos)
-    .sort((a,b)=> b[1].kg - a[1].kg)
-    .map(([prod,r])=>`
-
-  <tr>
-
-  <td>${prod}</td>
-
-  <td class="right">
-  ${to2(r.kg)}
-  </td>
-
-  <td class="right">
-  ${r.tienePzas ? Math.round(r.piezas) : ''}
-  </td>
-
-  <td class="right">
-  $${to2(r.importe)}
-  </td>
-
-  </tr>
-
-  `).join('')}
-
-  </tbody>
-  </table>
-
-  `).join('')}
-
-  </body>
-  </html>
-  `;
-
-  const win = window.open(
-    '',
-    '_blank',
-    'width=1200,height=800'
-  );
-
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-
-  setTimeout(()=>{
-    win.print();
-  },400);
-}
-
-async function exportPeriodoCSV(){
-
-  const pack = await obtenerDatosPeriodo();
-
-  if(!pack) return;
-
-  const {
-    desde,
-    hasta,
-    notas,
-    det
-  } = pack;
-
-  const head = [
-    'Desde',
-    'Hasta',
-    'Cliente',
-    'Folio',
-    'Fecha',
-    'Hora',
-    'Producto',
-    'Kg',
-    'Piezas',
-    'Precio',
-    'Importe'
-  ];
-
-  const rows = det.map(d=>{
-
-    const nota =
-      notas.find(n=>n.id === d.nota_id) || {};
-
-    return [
-      desde,
-      hasta,
-      productoBonito(nota.clientes?.nombre || ''),
-      nota.folio || '',
-      nota.fecha || '',
-      new Date(d.created_at).toLocaleTimeString(),
-      productoBonito(d.producto),
-      to2(d.cantidad),
-      d.piezas != null ? d.piezas : '',
-      to2(d.precio),
-      to2(d.importe)
-    ];
-  });
-
-  const csv =
-    [head, ...rows]
-      .map(r=> r.map(csvEscape).join(','))
-      .join('\n');
-
-  const blob = new Blob(
-    [csv],
-    {type:'text/csv;charset=utf-8'}
-  );
-
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-
-  a.href = url;
-
-  a.download =
-    `reporte_periodo_${desde}_a_${hasta}.csv`;
-
-  a.click();
-
-  URL.revokeObjectURL(url);
-}
-
   </script>
 </body>
 </html>
