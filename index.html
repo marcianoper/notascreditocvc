@@ -1111,6 +1111,7 @@ async function imprimirSilenciosoTexto(texto){
     const notaObs = $('#notaObs');
 
     let vbBusy = false;
+    let waBusy = false;
 
     notaFecha.value = todayISO();
     notaVence.value = addDays(notaFecha.value, notaDias.value);
@@ -2090,14 +2091,18 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         return;
       }
 
+      if(waBusy) return;
+      waBusy = true;
+
       const msg = plantillaWA(nota, det||[], productoBonito(nombre));
       const u = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
-      const u2 = `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(msg)}`;
 
-      const w = window.open(u,"_blank");
-      setTimeout(()=>{
-        if(!w || w.closed) window.open(u2,"_blank");
-      }, 600);
+      // ✅ Corrección: abrir WhatsApp una sola vez.
+      // Antes se intentaba abrir wa.me y luego api.whatsapp.com como respaldo,
+      // lo que en algunos navegadores generaba dos pestañas/mensajes.
+      window.open(u, "_blank", "noopener");
+
+      setTimeout(()=>{ waBusy = false; }, 1500);
     }
 
     async function imprimirNotaA4(nota_id){
