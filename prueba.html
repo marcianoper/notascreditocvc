@@ -483,72 +483,6 @@
       </div>
     </section>
 
-    <section class="card">
-      <h2>📊 Resumen mensual de kilos netos</h2>
-      <p class="muted" style="margin-top:0">Consulta cuántos kilos netos se vendieron en un mes, por producto y por cliente.</p>
-
-      <div class="row-3">
-        <div>
-          <label>Mes</label>
-          <input id="mesKilos" type="month" />
-        </div>
-        <div>
-          <label>&nbsp;</label>
-          <button class="btn btn-primary" id="btnMesKilos" type="button">Ver kilos del mes</button>
-        </div>
-        <div>
-          <label>&nbsp;</label>
-          <button class="btn btn-ghost" id="btnMesKilosCSV" type="button">CSV mensual</button>
-        </div>
-      </div>
-
-      <div class="helperBadges" id="mesKilosKPIs">
-        <span class="pill">Kg netos: 0.00</span>
-        <span class="pill">Notas: 0</span>
-        <span class="pill">Clientes: 0</span>
-        <span class="pill">Importe: $0.00</span>
-      </div>
-
-      <div class="row" style="align-items:start;margin-top:12px">
-        <div>
-          <h3 style="margin:0 0 8px;font-size:15px">Kilos por producto</h3>
-          <div class="bandejaWrap" style="max-height:38vh">
-            <table>
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Kg netos</th>
-                  <th>Pzas</th>
-                  <th>Importe</th>
-                </tr>
-              </thead>
-              <tbody id="mesProductoBody">
-                <tr><td colspan="4" class="muted">Selecciona un mes y presiona Ver kilos del mes.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div>
-          <h3 style="margin:0 0 8px;font-size:15px">Kilos por cliente</h3>
-          <div class="bandejaWrap" style="max-height:38vh">
-            <table>
-              <thead>
-                <tr>
-                  <th>Cliente</th>
-                  <th>Kg netos</th>
-                  <th>Importe</th>
-                </tr>
-              </thead>
-              <tbody id="mesClienteBody">
-                <tr><td colspan="3" class="muted">Sin datos cargados.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
    
   </main>
 
@@ -562,6 +496,10 @@
     // 🔥 IMPRESIÓN SILENCIOSA VDC
 const IMPRESION_SILENCIOSA_URL = "http://192.168.1.84:5050/imprimir";
 const USAR_IMPRESION_SILENCIOSA = true;
+
+// 📤 MENSAJERÍA DIRECTA VDC360 → OpenWA
+// Este servicio Python debe estar ejecutándose en la misma computadora.
+const MENSAJERIA_VDC_URL = "http://localhost:5001/enviar-mensaje";
 
 async function imprimirSilenciosoTexto(texto){
   try{
@@ -1174,20 +1112,15 @@ async function imprimirSilenciosoTexto(texto){
     const diaFecha = $('#diaFecha');
     const diaResumen = $('#diaResumen');
 
-    const mesKilos = $('#mesKilos');
-    const mesKilosKPIs = $('#mesKilosKPIs');
-    const mesProductoBody = $('#mesProductoBody');
-    const mesClienteBody = $('#mesClienteBody');
-
     const notaObs = $('#notaObs');
 
     let vbBusy = false;
+    let waBusy = false;
 
     notaFecha.value = todayISO();
     notaVence.value = addDays(notaFecha.value, notaDias.value);
     bandejaFecha.value = todayISO();
     diaFecha.value = todayISO();
-    if(mesKilos) mesKilos.value = todayISO().slice(0,7);
 
     exitGuardToggle.checked = exitGuardEnabled;
     exitGuardToggle.addEventListener('change', ()=>{
@@ -1239,8 +1172,6 @@ $('#btnAbrirVentaBodega')?.addEventListener('click', abrirVentaBodegaDirecto);
 $('#btnBandeja')?.addEventListener('click', loadBandeja);
 $('#btnDiaA4')?.addEventListener('click', imprimirDiaA4);
 $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
-$('#btnMesKilos')?.addEventListener('click', loadResumenMensualKilos);
-$('#btnMesKilosCSV')?.addEventListener('click', exportResumenMensualCSV);
 
     vbProcesarManual?.addEventListener('click', async ()=>{
       await processVentaBodegaText(vbPayload.value || '');
@@ -2140,38 +2071,136 @@ $('#btnMesKilosCSV')?.addEventListener('click', exportResumenMensualCSV);
       return digits;
     }
 
+    function mostrarEstadoWA(mensaje, tipo='ok'){
+      let aviso = document.getElementById('waEstadoFlotante');
+
+      if(!aviso){
+        aviso = document.createElement('div');
+        aviso.id = 'waEstadoFlotante';
+        aviso.style.cssText = `
+          position:fixed;
+          right:18px;
+          bottom:18px;
+          z-index:10000;
+          max-width:360px;
+          padding:13px 16px;
+          border-radius:12px;
+          color:#fff;
+          font-weight:800;
+          box-shadow:0 12px 30px rgba(0,0,0,.22);
+          transition:opacity .2s ease, transform .2s ease;
+        `;
+        document.body.appendChild(aviso);
+      }
+
+      const fondos = {
+        cargando:'#111827',
+        ok:'#0a7a3b',
+        error:'#b91c1c'
+      };
+
+      aviso.style.background = fondos[tipo] || fondos.ok;
+      aviso.style.opacity = '1';
+      aviso.style.transform = 'translateY(0)';
+      aviso.textContent = mensaje;
+
+      clearTimeout(aviso._timer);
+
+      if(tipo !== 'cargando'){
+        aviso._timer = setTimeout(()=>{
+          aviso.style.opacity = '0';
+          aviso.style.transform = 'translateY(8px)';
+        }, 4200);
+      }
+    }
+
+    async function enviarMensajeOpenWA(telefono, mensaje){
+      const respuesta = await fetch(MENSAJERIA_VDC_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          telefono,
+          mensaje
+        })
+      });
+
+      let resultado = {};
+
+      try{
+        resultado = await respuesta.json();
+      }catch(_error){
+        resultado = {};
+      }
+
+      if(!respuesta.ok || !resultado.ok){
+        throw new Error(
+          resultado.detalle ||
+          resultado.error ||
+          `El servidor respondió con código ${respuesta.status}`
+        );
+      }
+
+      return resultado;
+    }
+
     async function waNota(nota_id){
-      const { data: nota } = await sb.from('notas_credito').select('*').eq('id', nota_id).single();
-      const { data: det } = await sb.from('notas_detalle').select('*').eq('nota_id', nota_id).order('created_at');
-
-      const nombre = getClientName(nota.cliente_id);
-
-      let phone = slotState[slotActive].telefono;
-      if(!phone || (activeNota()?.cliente_id !== nota.cliente_id)){
-        const c = getClient(nota.cliente_id);
-        phone = c ? (c.telefono||'') : '';
-      }
-
-      const phoneRaw = (phone || '').trim();
-      if(!phoneRaw){
-        alert('El cliente no tiene teléfono guardado. Captura el número en "Teléfono (WhatsApp)" y vuelve a intentar.');
+      if(waBusy){
+        mostrarEstadoWA('Ya se está enviando una nota. Espera un momento…', 'cargando');
         return;
       }
 
-      const digits = normalizeMxPhoneToWhatsAppDigits(phoneRaw);
-      if(!digits){
-        alert('El teléfono del cliente no es válido.');
-        return;
+      waBusy = true;
+      mostrarEstadoWA('Enviando nota por WhatsApp…', 'cargando');
+
+      try{
+        const { data: nota, error: notaError } = await sb
+          .from('notas_credito')
+          .select('*')
+          .eq('id', nota_id)
+          .single();
+
+        if(notaError || !nota){
+          throw new Error('No se pudo cargar la nota.');
+        }
+
+        const { data: det, error: detError } = await sb
+          .from('notas_detalle')
+          .select('*')
+          .eq('nota_id', nota_id)
+          .order('created_at');
+
+        if(detError){
+          throw new Error('No se pudo cargar el detalle de la nota.');
+        }
+
+        const cliente = getClient(nota.cliente_id);
+        const nombre = productoBonito(cliente?.nombre || getClientName(nota.cliente_id) || 'Cliente');
+        const phoneRaw = String(cliente?.telefono || '').trim();
+
+        if(!phoneRaw){
+          throw new Error(
+            'El cliente no tiene teléfono guardado. Captura el número en "Teléfono (WhatsApp)" y vuelve a intentar.'
+          );
+        }
+
+        const digits = normalizeMxPhoneToWhatsAppDigits(phoneRaw);
+        if(!digits){
+          throw new Error('El teléfono del cliente no es válido.');
+        }
+
+        const mensaje = plantillaWA(nota, det || [], nombre);
+
+        await enviarMensajeOpenWA(digits, mensaje);
+
+        mostrarEstadoWA(`✅ Nota ${nota.folio} enviada a ${nombre}.`, 'ok');
+      }catch(error){
+        console.error('Error al enviar la nota por OpenWA:', error);
+        mostrarEstadoWA(`❌ ${error.message || 'No se pudo enviar la nota.'}`, 'error');
+      }finally{
+        waBusy = false;
       }
-
-      const msg = plantillaWA(nota, det||[], productoBonito(nombre));
-      const u = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
-      const u2 = `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(msg)}`;
-
-      const w = window.open(u,"_blank");
-      setTimeout(()=>{
-        if(!w || w.closed) window.open(u2,"_blank");
-      }, 600);
     }
 
     async function imprimirNotaA4(nota_id){
@@ -2706,164 +2735,6 @@ if(USAR_IMPRESION_SILENCIOSA){
       win.focus();
 
       setTimeout(() => { win.print(); }, 400);
-    }
-
-
-    function getMonthBounds(monthValue){
-      const ym = monthValue || todayISO().slice(0,7);
-      const [y, m] = ym.split('-').map(Number);
-      const start = `${y}-${String(m).padStart(2,'0')}-01`;
-      const endDate = new Date(y, m, 0);
-      const end = `${y}-${String(m).padStart(2,'0')}-${String(endDate.getDate()).padStart(2,'0')}`;
-      return { ym, start, end };
-    }
-
-    async function buildResumenMensual(){
-      const { ym, start, end } = getMonthBounds(mesKilos?.value || todayISO().slice(0,7));
-
-      const { data: notas, error: notasError } = await sb
-        .from('notas_credito')
-        .select('id, folio, fecha, clientes(nombre)')
-        .gte('fecha', start)
-        .lte('fecha', end)
-        .order('fecha');
-
-      if(notasError){
-        console.error(notasError);
-        throw new Error('No se pudieron leer las notas del mes.');
-      }
-
-      const ids = (notas || []).map(n => n.id);
-      if(!ids.length){
-        return { ym, start, end, notas: [], detalles: [], productos: [], clientes: [], totalKg:0, totalImporte:0 };
-      }
-
-      const { data: det, error: detError } = await sb
-        .from('notas_detalle')
-        .select('nota_id, producto, cantidad, piezas, precio, importe, created_at')
-        .in('nota_id', ids)
-        .order('created_at');
-
-      if(detError){
-        console.error(detError);
-        throw new Error('No se pudieron leer los detalles del mes.');
-      }
-
-      const notasMap = Object.fromEntries((notas || []).map(n => [n.id, n]));
-      const porProducto = {};
-      const porCliente = {};
-      let totalKg = 0;
-      let totalImporte = 0;
-
-      (det || []).forEach(d => {
-        const nota = notasMap[d.nota_id] || {};
-        const producto = productoBonito(d.producto || 'Sin producto');
-        const cliente = productoBonito(nota.clientes?.nombre || '—');
-        const kg = Number(d.cantidad || 0);
-        const importe = Number(d.importe || 0);
-        const pzas = d.piezas != null && d.piezas !== '' ? Number(d.piezas || 0) : null;
-
-        totalKg += kg;
-        totalImporte += importe;
-
-        if(!porProducto[producto]) porProducto[producto] = { producto, kg:0, pzas:0, tienePzas:false, importe:0 };
-        porProducto[producto].kg += kg;
-        porProducto[producto].importe += importe;
-        if(pzas != null){
-          porProducto[producto].pzas += pzas;
-          porProducto[producto].tienePzas = true;
-        }
-
-        if(!porCliente[cliente]) porCliente[cliente] = { cliente, kg:0, importe:0 };
-        porCliente[cliente].kg += kg;
-        porCliente[cliente].importe += importe;
-      });
-
-      const productos = Object.values(porProducto).sort((a,b)=> b.kg - a.kg);
-      const clientes = Object.values(porCliente).sort((a,b)=> b.kg - a.kg);
-
-      return { ym, start, end, notas: notas || [], detalles: det || [], productos, clientes, totalKg, totalImporte };
-    }
-
-    async function loadResumenMensualKilos(){
-      try{
-        const res = await buildResumenMensual();
-        const clientesUnicos = new Set((res.notas || []).map(n => n.clientes?.nombre || '—'));
-
-        if(mesKilosKPIs){
-          mesKilosKPIs.innerHTML = `
-            <span class="pill">Kg netos: ${to2(res.totalKg)}</span>
-            <span class="pill">Notas: ${(res.notas || []).length}</span>
-            <span class="pill">Clientes: ${clientesUnicos.size}</span>
-            <span class="pill">Importe: $${to2(res.totalImporte)}</span>
-            <span class="pill">Periodo: ${res.start} a ${res.end}</span>
-          `;
-        }
-
-        if(mesProductoBody){
-          mesProductoBody.innerHTML = res.productos.length
-            ? res.productos.map(r => `
-                <tr>
-                  <td>${productoBonito(r.producto)}</td>
-                  <td><b>${to2(r.kg)}</b></td>
-                  <td>${r.tienePzas ? Math.round(r.pzas) : ''}</td>
-                  <td>$${to2(r.importe)}</td>
-                </tr>
-              `).join('')
-            : '<tr><td colspan="4" class="muted">No hay kilos vendidos en este mes.</td></tr>';
-        }
-
-        if(mesClienteBody){
-          mesClienteBody.innerHTML = res.clientes.length
-            ? res.clientes.map(r => `
-                <tr>
-                  <td>${productoBonito(r.cliente)}</td>
-                  <td><b>${to2(r.kg)}</b></td>
-                  <td>$${to2(r.importe)}</td>
-                </tr>
-              `).join('')
-            : '<tr><td colspan="3" class="muted">No hay clientes con ventas en este mes.</td></tr>';
-        }
-      }catch(err){
-        console.error(err);
-        alert(err?.message || 'No se pudo cargar el resumen mensual.');
-      }
-    }
-
-    async function exportResumenMensualCSV(){
-      try{
-        const res = await buildResumenMensual();
-        if(!res.detalles.length) return alert('No hay kilos vendidos en este mes.');
-
-        const notasMap = Object.fromEntries((res.notas || []).map(n => [n.id, n]));
-        const head = ['Cliente','Folio','Fecha','Hora','Producto','Kg netos','Piezas','Precio','Importe'];
-        const rows = (res.detalles || []).map(d => {
-          const n = notasMap[d.nota_id] || {};
-          return [
-            productoBonito(n.clientes?.nombre || ''),
-            n.folio || '',
-            n.fecha || '',
-            new Date(d.created_at).toLocaleTimeString(),
-            productoBonito(d.producto),
-            to2(d.cantidad),
-            (d.piezas != null ? d.piezas : ''),
-            to2(d.precio),
-            to2(d.importe)
-          ];
-        });
-
-        const csv = [head, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
-        const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `kilos_netos_${res.ym}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }catch(err){
-        console.error(err);
-        alert(err?.message || 'No se pudo exportar el resumen mensual.');
-      }
     }
 
     async function exportDiaCSV(){
