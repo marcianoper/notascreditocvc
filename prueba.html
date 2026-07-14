@@ -2148,7 +2148,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
     async function waNota(nota_id){
       if(waBusy){
         mostrarEstadoWA('Ya se está enviando una nota. Espera un momento…', 'cargando');
-        return;
+        return false;
       }
 
       waBusy = true;
@@ -2195,9 +2195,11 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         await enviarMensajeOpenWA(digits, mensaje);
 
         mostrarEstadoWA(`✅ Nota ${nota.folio} enviada a ${nombre}.`, 'ok');
+        return true;
       }catch(error){
         console.error('Error al enviar la nota por OpenWA:', error);
         mostrarEstadoWA(`❌ ${error.message || 'No se pudo enviar la nota.'}`, 'error');
+        return false;
       }finally{
         waBusy = false;
       }
@@ -2818,7 +2820,16 @@ if(USAR_IMPRESION_SILENCIOSA){
 
     async function cerrarNotaById(nota_id){
       if(!nota_id) return;
-      if(!confirm('¿Cerrar esta nota?')) return;
+      if(!confirm('¿Cerrar esta nota y enviarla automáticamente por WhatsApp?')) return;
+
+      const enviado = await waNota(nota_id);
+
+      if(!enviado){
+        const cerrarDeTodosModos = confirm(
+          'No se pudo enviar el WhatsApp. ¿Deseas cerrar la nota de todos modos?'
+        );
+        if(!cerrarDeTodosModos) return;
+      }
 
       const { error } = await sb
         .from('notas_credito')
@@ -2836,17 +2847,50 @@ if(USAR_IMPRESION_SILENCIOSA){
 
       await renderVista();
       await loadBandeja();
-      alert('✅ Nota cerrada');
+
+      alert(enviado
+        ? '✅ Nota enviada por WhatsApp y cerrada correctamente'
+        : '✅ Nota cerrada sin envío de WhatsApp'
+      );
     }
 
     async function cerrarNota(){
       const n = activeNota();
       if(!n) return alert('Sin nota');
 
-      await sb.from('notas_credito').update({estado:'cerrada'}).eq('id', n.id);
+      if(!confirm('¿Cerrar esta nota y enviarla automáticamente por WhatsApp?')) return;
+
+      const nota_id = n.id;
+      const enviado = await waNota(nota_id);
+
+      if(!enviado){
+        const cerrarDeTodosModos = confirm(
+          'No se pudo enviar el WhatsApp. ¿Deseas cerrar la nota de todos modos?'
+        );
+        if(!cerrarDeTodosModos) return;
+      }
+
+      const { error } = await sb
+        .from('notas_credito')
+        .update({estado:'cerrada'})
+        .eq('id', nota_id);
+
+      if(error){
+        console.error(error);
+        alert('No se pudo cerrar la nota');
+        return;
+      }
+
+      if(slotActive === 'A') notaA = null;
+      else notaB = null;
+
       await renderVista();
       await loadBandeja();
-      alert('✅ Nota cerrada');
+
+      alert(enviado
+        ? '✅ Nota enviada por WhatsApp y cerrada correctamente'
+        : '✅ Nota cerrada sin envío de WhatsApp'
+      );
     }
   </script>
 </body>
