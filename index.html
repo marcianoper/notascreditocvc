@@ -497,6 +497,10 @@
 const IMPRESION_SILENCIOSA_URL = "http://192.168.1.84:5050/imprimir";
 const USAR_IMPRESION_SILENCIOSA = true;
 
+// 📤 MENSAJERÍA DIRECTA VDC360 → OpenWA
+// Este servicio Python debe estar ejecutándose en la misma computadora.
+const MENSAJERIA_VDC_URL = "http://localhost:5001/enviar-mensaje";
+
 async function imprimirSilenciosoTexto(texto){
   try{
     const res = await fetch(IMPRESION_SILENCIOSA_URL, {
@@ -2067,42 +2071,136 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       return digits;
     }
 
+    function mostrarEstadoWA(mensaje, tipo='ok'){
+      let aviso = document.getElementById('waEstadoFlotante');
+
+      if(!aviso){
+        aviso = document.createElement('div');
+        aviso.id = 'waEstadoFlotante';
+        aviso.style.cssText = `
+          position:fixed;
+          right:18px;
+          bottom:18px;
+          z-index:10000;
+          max-width:360px;
+          padding:13px 16px;
+          border-radius:12px;
+          color:#fff;
+          font-weight:800;
+          box-shadow:0 12px 30px rgba(0,0,0,.22);
+          transition:opacity .2s ease, transform .2s ease;
+        `;
+        document.body.appendChild(aviso);
+      }
+
+      const fondos = {
+        cargando:'#111827',
+        ok:'#0a7a3b',
+        error:'#b91c1c'
+      };
+
+      aviso.style.background = fondos[tipo] || fondos.ok;
+      aviso.style.opacity = '1';
+      aviso.style.transform = 'translateY(0)';
+      aviso.textContent = mensaje;
+
+      clearTimeout(aviso._timer);
+
+      if(tipo !== 'cargando'){
+        aviso._timer = setTimeout(()=>{
+          aviso.style.opacity = '0';
+          aviso.style.transform = 'translateY(8px)';
+        }, 4200);
+      }
+    }
+
+    async function enviarMensajeOpenWA(telefono, mensaje){
+      const respuesta = await fetch(MENSAJERIA_VDC_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          telefono,
+          mensaje
+        })
+      });
+
+      let resultado = {};
+
+      try{
+        resultado = await respuesta.json();
+      }catch(_error){
+        resultado = {};
+      }
+
+      if(!respuesta.ok || !resultado.ok){
+        throw new Error(
+          resultado.detalle ||
+          resultado.error ||
+          `El servidor respondió con código ${respuesta.status}`
+        );
+      }
+
+      return resultado;
+    }
+
     async function waNota(nota_id){
-      const { data: nota } = await sb.from('notas_credito').select('*').eq('id', nota_id).single();
-      const { data: det } = await sb.from('notas_detalle').select('*').eq('nota_id', nota_id).order('created_at');
-
-      const nombre = getClientName(nota.cliente_id);
-
-      let phone = slotState[slotActive].telefono;
-      if(!phone || (activeNota()?.cliente_id !== nota.cliente_id)){
-        const c = getClient(nota.cliente_id);
-        phone = c ? (c.telefono||'') : '';
-      }
-
-      const phoneRaw = (phone || '').trim();
-      if(!phoneRaw){
-        alert('El cliente no tiene teléfono guardado. Captura el número en "Teléfono (WhatsApp)" y vuelve a intentar.');
+      if(waBusy){
+        mostrarEstadoWA('Ya se está enviando una nota. Espera un momento…', 'cargando');
         return;
       }
 
-      const digits = normalizeMxPhoneToWhatsAppDigits(phoneRaw);
-      if(!digits){
-        alert('El teléfono del cliente no es válido.');
-        return;
-      }
-
-      if(waBusy) return;
       waBusy = true;
+      mostrarEstadoWA('Enviando nota por WhatsApp…', 'cargando');
 
-      const msg = plantillaWA(nota, det||[], productoBonito(nombre));
-      const u = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+      try{
+        const { data: nota, error: notaError } = await sb
+          .from('notas_credito')
+          .select('*')
+          .eq('id', nota_id)
+          .single();
 
-      // ✅ Corrección: abrir WhatsApp una sola vez.
-      // Antes se intentaba abrir wa.me y luego api.whatsapp.com como respaldo,
-      // lo que en algunos navegadores generaba dos pestañas/mensajes.
-      window.open(u, "_blank", "noopener");
+        if(notaError || !nota){
+          throw new Error('No se pudo cargar la nota.');
+        }
 
-      setTimeout(()=>{ waBusy = false; }, 1500);
+        const { data: det, error: detError } = await sb
+          .from('notas_detalle')
+          .select('*')
+          .eq('nota_id', nota_id)
+          .order('created_at');
+
+        if(detError){
+          throw new Error('No se pudo cargar el detalle de la nota.');
+        }
+
+        const cliente = getClient(nota.cliente_id);
+        const nombre = productoBonito(cliente?.nombre || getClientName(nota.cliente_id) || 'Cliente');
+        const phoneRaw = String(cliente?.telefono || '').trim();
+
+        if(!phoneRaw){
+          throw new Error(
+            'El cliente no tiene teléfono guardado. Captura el número en "Teléfono (WhatsApp)" y vuelve a intentar.'
+          );
+        }
+
+        const digits = normalizeMxPhoneToWhatsAppDigits(phoneRaw);
+        if(!digits){
+          throw new Error('El teléfono del cliente no es válido.');
+        }
+
+        const mensaje = plantillaWA(nota, det || [], nombre);
+
+        await enviarMensajeOpenWA(digits, mensaje);
+
+        mostrarEstadoWA(`✅ Nota ${nota.folio} enviada a ${nombre}.`, 'ok');
+      }catch(error){
+        console.error('Error al enviar la nota por OpenWA:', error);
+        mostrarEstadoWA(`❌ ${error.message || 'No se pudo enviar la nota.'}`, 'error');
+      }finally{
+        waBusy = false;
+      }
     }
 
     async function imprimirNotaA4(nota_id){
