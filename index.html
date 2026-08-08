@@ -466,9 +466,9 @@
             <tr>
               <th>Folio</th>
               <th>Cliente</th>
-              <th>Saldo</th>
               <th>Estado</th>
               <th>Impresión</th>
+              <th>WhatsApp</th>
               <th style="text-align:right">Acciones</th>
             </tr>
           </thead>
@@ -1971,7 +1971,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
 
       const { data, error } = await sb
         .from('notas_credito')
-        .select('id,folio,saldo,estado,impreso,impreso_at,impresiones,clientes(nombre),cliente_id,created_at')
+        .select('id,folio,estado,impreso,impreso_at,impresiones,whatsapp_enviado,whatsapp_enviado_at,whatsapp_envios,clientes(nombre),cliente_id,created_at')
         .eq('fecha', f)
         .eq('estado','abierta')
         .order('created_at', { ascending:false });
@@ -1996,12 +1996,16 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         <tr>
           <td>${r.folio}</td>
           <td>${productoBonito(r.clientes?.nombre||'')}</td>
-          <td>$${to2(r.saldo||0)}</td>
           <td>${r.estado||'abierta'}</td>
           <td>
             ${r.impreso
               ? `<span class="printStatus done" title="${r.impreso_at ? new Date(r.impreso_at).toLocaleString() : 'Impresión registrada'}">✅ Impresa${Number(r.impresiones||0) > 1 ? ` · ${r.impresiones} veces` : ''}</span>`
               : `<span class="printStatus pending">⚠️ No impresa</span>`}
+          </td>
+          <td>
+            ${r.whatsapp_enviado
+              ? `<span class="printStatus done" title="${r.whatsapp_enviado_at ? new Date(r.whatsapp_enviado_at).toLocaleString() : 'Envío registrado'}">✅ Enviado${Number(r.whatsapp_envios||0) > 1 ? ` · ${r.whatsapp_envios} veces` : ''}</span>`
+              : `<span class="printStatus pending">⚠️ No enviado</span>`}
           </td>
           <td style="text-align:right">
             <details class="actionMenu">
@@ -2164,6 +2168,59 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       return resultado;
     }
 
+    async function registrarNotaWhatsApp(nota){
+      if(!nota?.id) return false;
+
+      const nuevoConteo = Number(nota.whatsapp_envios || 0) + 1;
+      const ahora = new Date().toISOString();
+
+      const { error } = await sb
+        .from('notas_credito')
+        .update({
+          whatsapp_enviado: true,
+          whatsapp_enviado_at: ahora,
+          whatsapp_envios: nuevoConteo
+        })
+        .eq('id', nota.id);
+
+      if(error){
+        console.error('No se pudo registrar el envío de WhatsApp:', error);
+        alert('La nota sí se envió por WhatsApp, pero no pude guardar el estado en Supabase.');
+        return false;
+      }
+
+      if(notaA?.id === nota.id){
+        notaA.whatsapp_enviado = true;
+        notaA.whatsapp_enviado_at = ahora;
+        notaA.whatsapp_envios = nuevoConteo;
+      }
+      if(notaB?.id === nota.id){
+        notaB.whatsapp_enviado = true;
+        notaB.whatsapp_enviado_at = ahora;
+        notaB.whatsapp_envios = nuevoConteo;
+      }
+
+      await loadBandeja();
+      return true;
+    }
+
+    function confirmarReenvioWhatsApp(nota){
+      if(!nota?.whatsapp_enviado) return true;
+
+      const cuando = nota.whatsapp_enviado_at
+        ? new Date(nota.whatsapp_enviado_at).toLocaleString()
+        : 'fecha no registrada';
+      const veces = Number(nota.whatsapp_envios || 1);
+
+      return confirm(
+        `⚠️ ESTA NOTA YA FUE ENVIADA POR WHATSAPP\n\n` +
+        `Folio: ${nota.folio}\n` +
+        `Último envío: ${cuando}\n` +
+        `Envíos registrados: ${veces}\n\n` +
+        `¿Quieres ENVIARLA OTRA VEZ de todos modos?`
+      );
+    }
+
     async function waNota(nota_id){
       if(waBusy){
         mostrarEstadoWA('Ya se está enviando una nota. Espera un momento…', 'cargando');
@@ -2171,7 +2228,6 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       }
 
       waBusy = true;
-      mostrarEstadoWA('Enviando nota por WhatsApp…', 'cargando');
 
       try{
         const { data: nota, error: notaError } = await sb
@@ -2183,6 +2239,13 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         if(notaError || !nota){
           throw new Error('No se pudo cargar la nota.');
         }
+
+        if(!confirmarReenvioWhatsApp(nota)){
+          waBusy = false;
+          return;
+        }
+
+        mostrarEstadoWA('Enviando nota por WhatsApp…', 'cargando');
 
         const { data: det, error: detError } = await sb
           .from('notas_detalle')
@@ -2212,6 +2275,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         const mensaje = plantillaWA(nota, det || [], nombre);
 
         await enviarMensajeOpenWA(digits, mensaje);
+        await registrarNotaWhatsApp(nota);
 
         mostrarEstadoWA(`✅ Nota ${nota.folio} enviada a ${nombre}.`, 'ok');
       }catch(error){
