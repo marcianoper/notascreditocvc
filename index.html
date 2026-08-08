@@ -159,6 +159,19 @@
     }
     .menuPanel button:hover{ background:#f6f7f8; }
     .menuPanel button.danger{ border-color:#fee2e2; color:#b91c1c; }
+
+    .printStatus{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 9px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+    .printStatus.pending{ background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+    .printStatus.done{ background:#eef7f0; color:#0a7a3b; border:1px solid #cde7d4; }
   </style>
 </head>
 
@@ -455,6 +468,7 @@
               <th>Cliente</th>
               <th>Saldo</th>
               <th>Estado</th>
+              <th>Impresión</th>
               <th style="text-align:right">Acciones</th>
             </tr>
           </thead>
@@ -1957,14 +1971,14 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
 
       const { data, error } = await sb
         .from('notas_credito')
-        .select('id,folio,saldo,estado,clientes(nombre),cliente_id,created_at')
+        .select('id,folio,saldo,estado,impreso,impreso_at,impresiones,clientes(nombre),cliente_id,created_at')
         .eq('fecha', f)
         .eq('estado','abierta')
         .order('created_at', { ascending:false });
 
       if(error){
         console.error(error);
-        bandejaBody.innerHTML = `<tr><td colspan="5" class="muted">Error cargando bandeja</td></tr>`;
+        bandejaBody.innerHTML = `<tr><td colspan="6" class="muted">Error cargando bandeja</td></tr>`;
         return;
       }
 
@@ -1984,6 +1998,11 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
           <td>${productoBonito(r.clientes?.nombre||'')}</td>
           <td>$${to2(r.saldo||0)}</td>
           <td>${r.estado||'abierta'}</td>
+          <td>
+            ${r.impreso
+              ? `<span class="printStatus done" title="${r.impreso_at ? new Date(r.impreso_at).toLocaleString() : 'Impresión registrada'}">✅ Impresa${Number(r.impresiones||0) > 1 ? ` · ${r.impresiones} veces` : ''}</span>`
+              : `<span class="printStatus pending">⚠️ No impresa</span>`}
+          </td>
           <td style="text-align:right">
             <details class="actionMenu">
               <summary>Acciones ▾</summary>
@@ -2253,14 +2272,74 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       window.print();
       setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
     }
+async function registrarNotaImpresa(nota){
+  if(!nota?.id) return false;
+
+  const nuevoConteo = Number(nota.impresiones || 0) + 1;
+  const ahora = new Date().toISOString();
+
+  const { error } = await sb
+    .from('notas_credito')
+    .update({
+      impreso: true,
+      impreso_at: ahora,
+      impresiones: nuevoConteo
+    })
+    .eq('id', nota.id);
+
+  if(error){
+    console.error('No se pudo registrar la impresión:', error);
+    alert('La nota sí se mandó a imprimir, pero no pude guardar el estado de impresión en Supabase.');
+    return false;
+  }
+
+  if(notaA?.id === nota.id){
+    notaA.impreso = true;
+    notaA.impreso_at = ahora;
+    notaA.impresiones = nuevoConteo;
+  }
+  if(notaB?.id === nota.id){
+    notaB.impreso = true;
+    notaB.impreso_at = ahora;
+    notaB.impresiones = nuevoConteo;
+  }
+
+  await loadBandeja();
+  return true;
+}
+
+function confirmarReimpresion(nota){
+  if(!nota?.impreso) return true;
+
+  const cuando = nota.impreso_at
+    ? new Date(nota.impreso_at).toLocaleString()
+    : 'fecha no registrada';
+  const veces = Number(nota.impresiones || 1);
+
+  return confirm(
+    `⚠️ ESTA NOTA YA FUE IMPRESA\n\n` +
+    `Folio: ${nota.folio}\n` +
+    `Última impresión: ${cuando}\n` +
+    `Impresiones registradas: ${veces}\n\n` +
+    `¿Quieres REIMPRIMIRLA de todos modos?`
+  );
+}
+
 async function imprimirNota80mm(nota_id){
   await saveNotaObs();
 
-  const { data: nota } = await sb
+  const { data: nota, error: notaError } = await sb
     .from('notas_credito')
     .select('*, clientes(nombre)')
     .eq('id', nota_id)
     .single();
+
+  if(notaError || !nota){
+    console.error(notaError);
+    return alert('No se pudo cargar la nota para imprimir.');
+  }
+
+  if(!confirmarReimpresion(nota)) return;
 
   const { data: det } = await sb
     .from('notas_detalle')
@@ -2443,6 +2522,7 @@ if(USAR_IMPRESION_SILENCIOSA){
       }
     }
 
+    await registrarNotaImpresa(nota);
     return;
 
   }catch(err){
@@ -2457,7 +2537,10 @@ if(USAR_IMPRESION_SILENCIOSA){
   win.document.close();
   win.focus();
 
-  setTimeout(()=>{ win.print(); }, 300);
+  setTimeout(async ()=>{
+    win.print();
+    await registrarNotaImpresa(nota);
+  }, 300);
 }
     async function imprimirDiaA4(){
       const f = diaFecha.value || todayISO();
