@@ -1,0 +1,249 @@
+!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cobranza VDC360</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f3f5f7;--card:#fff;--ink:#171717;--muted:#667085;--line:#e4e7ec;
+  --brand:#111827;--green:#137a50;--greenbg:#eaf7f0;--amber:#9a6700;--amberbg:#fff6dc;
+  --red:#b42318;--redbg:#fff0ee;--blue:#175cd3;--bluebg:#eff8ff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{background:#111;color:#fff;padding:18px max(16px,env(safe-area-inset-right)) 18px max(16px,env(safe-area-inset-left));position:sticky;top:0;z-index:20;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+.header-inner{max-width:1180px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between}
+h1{font-size:22px;margin:0}.sub{font-size:12px;color:#cfd4dc;margin-top:3px}.status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#98a2b3;margin-right:6px}.status-dot.ok{background:#32d583}.status-dot.bad{background:#f04438}
+main{max-width:1180px;margin:22px auto;padding:0 14px 40px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}.stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 4px 16px rgba(16,24,40,.04)}.stat small{color:var(--muted);font-weight:700}.stat strong{display:block;font-size:25px;margin-top:5px}
+.toolbar{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.toolbar input{flex:1;min-width:220px}
+input,button{font:inherit}input{border:1px solid #cfd4dc;border-radius:12px;padding:12px 13px;outline:none;background:#fff}input:focus{border-color:#667085;box-shadow:0 0 0 3px rgba(102,112,133,.12)}
+button{border:0;border-radius:11px;padding:11px 14px;font-weight:800;cursor:pointer}.btn-dark{background:#111827;color:#fff}.btn-light{background:#f2f4f7;color:#344054}.btn-wa{background:#157347;color:#fff}.btn-wa:disabled{opacity:.45;cursor:not-allowed}
+.panel{background:#fff;border:1px solid var(--line);border-radius:17px;overflow:hidden;box-shadow:0 4px 16px rgba(16,24,40,.04)}
+.row{display:grid;grid-template-columns:minmax(180px,1.4fr) 145px 120px 145px 140px 185px;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}.row.head{background:#f8fafc;font-size:12px;font-weight:900;color:#667085;text-transform:uppercase;letter-spacing:.03em}.row:last-child{border-bottom:0}.client{font-weight:900}.phone{font-size:13px;color:var(--muted);margin-top:3px}.money{font-weight:900}.badge{display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;font-weight:800;font-size:12px}.badge.ok{background:var(--greenbg);color:var(--green)}.badge.warn{background:var(--amberbg);color:var(--amber)}.badge.bad{background:var(--redbg);color:var(--red)}.badge.neutral{background:#f2f4f7;color:#475467}.actions{display:flex;gap:7px;justify-content:flex-end}
+.empty{padding:34px 18px;text-align:center;color:var(--muted)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(16,24,40,.58);z-index:60;display:none;align-items:center;justify-content:center;padding:16px}.modal-backdrop.show{display:flex}.modal{width:min(560px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.28)}.modal h2{margin:0 0 5px}.modal .muted{color:var(--muted);font-size:14px}.preview{white-space:pre-wrap;background:#f2f4f7;border:1px solid #eaecf0;border-radius:15px;padding:16px;margin:16px 0;line-height:1.45}.internal{background:var(--bluebg);color:#1849a9;border-radius:13px;padding:12px;margin-top:12px;font-size:14px}.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:16px}.notes-list{margin:14px 0 0;padding:0;list-style:none}.notes-list li{padding:10px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}.toast{position:fixed;right:16px;bottom:16px;z-index:100;background:#111827;color:#fff;border-radius:13px;padding:13px 15px;max-width:min(420px,calc(100vw - 32px));font-weight:700;box-shadow:0 15px 40px rgba(0,0,0,.25);display:none}.toast.show{display:block}.toast.bad{background:#8f1d18}.toast.ok{background:#126b47}
+@media(max-width:900px){.row{grid-template-columns:1.4fr .8fr .8fr 1fr}.row .hide-md{display:none}.row.head{display:none}.actions{justify-content:flex-start}.stats{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:620px){header{position:static}.header-inner{align-items:flex-start;flex-direction:column}.stats{grid-template-columns:1fr}.row{grid-template-columns:1fr;gap:8px;padding:16px}.row>div:before{content:attr(data-label);display:block;font-size:10px;text-transform:uppercase;font-weight:900;color:#98a2b3;margin-bottom:2px}.row .client:before{display:none}.actions{display:grid;grid-template-columns:1fr 1fr}.actions button{width:100%}.toolbar{position:sticky;top:8px;z-index:10}.toolbar input{width:100%}.modal-actions{display:grid;grid-template-columns:1fr 1fr}.modal-actions button{width:100%}}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div><h1>Cobranza VDC360</h1><div class="sub">Recordatorios de cuentas pendientes · Carnes y Vísceras del Centro</div></div>
+    <div id="serverStatus"><span class="status-dot"></span>Comprobando WhatsApp cobranza…</div>
+  </div>
+</header>
+<main>
+  <section class="stats">
+    <div class="stat"><small>Clientes con saldo</small><strong id="statClientes">—</strong></div>
+    <div class="stat"><small>Saldo interno total</small><strong id="statSaldo">—</strong></div>
+    <div class="stat"><small>Recordatorios enviados hoy</small><strong id="statHoy">—</strong></div>
+  </section>
+
+  <section class="toolbar">
+    <input id="buscar" type="search" placeholder="Buscar cliente o teléfono…" autocomplete="off">
+    <button class="btn-light" id="btnActualizar">Actualizar</button>
+  </section>
+
+  <section class="panel">
+    <div class="row head">
+      <div>Cliente</div><div>Saldo interno</div><div>Notas</div><div>Vencimiento</div><div class="hide-md">Último aviso</div><div>Acciones</div>
+    </div>
+    <div id="lista"><div class="empty">Cargando cuentas pendientes…</div></div>
+  </section>
+</main>
+
+<div class="modal-backdrop" id="modalEnviar">
+  <div class="modal">
+    <h2>Enviar recordatorio</h2>
+    <div class="muted" id="modalCliente"></div>
+    <div class="internal" id="modalInterno"></div>
+    <div class="preview" id="previewMensaje"></div>
+    <div class="muted">El importe se muestra únicamente aquí para control interno. No se incluye en WhatsApp.</div>
+    <div class="modal-actions">
+      <button class="btn-light" onclick="cerrarModal('modalEnviar')">Cancelar</button>
+      <button class="btn-wa" id="btnConfirmarEnvio">Enviar por WhatsApp</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalCuenta">
+  <div class="modal">
+    <h2 id="cuentaTitulo">Cuenta</h2>
+    <div class="muted" id="cuentaResumen"></div>
+    <ul class="notes-list" id="cuentaNotas"></ul>
+    <div class="modal-actions"><button class="btn-dark" onclick="cerrarModal('modalCuenta')">Cerrar</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://bjebybdqcqscouxlinfd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqZWJ5YmRxY3FzY291eGxpbmZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMjQ3MTksImV4cCI6MjA3MTkwMDcxOX0.mQgWtiYEyJTiF04pdcLv63SqPNrU1Iehws0vKqr82O0";
+const COBRANZA_SERVER = "http://192.168.1.84:5001";
+const MENSAJE = `*Recordatorio importante*\nTe recordamos que tienes un pago pendiente con *Carnes y Vísceras del Centro*.\nAgradecemos realizar tu pago a la brevedad.\n\nSi ya realizaste tu pago, favor de ignorar este mensaje.`;
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let cuentas=[];
+let historial=[];
+let cuentaSeleccionada=null;
+let enviando=false;
+
+const $=s=>document.querySelector(s);
+function money(n){return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));}
+function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');}
+function fmtDate(v){if(!v)return '—';const d=new Date(String(v).length===10?v+'T12:00:00':v);return isNaN(d)?v:d.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});}
+function toast(msg,type=''){const el=$('#toast');el.textContent=msg;el.className='toast show '+type;clearTimeout(el._t);el._t=setTimeout(()=>el.className='toast',4200);}
+function cerrarModal(id){$('#'+id).classList.remove('show');}
+function normalizarTelefono(v){return String(v||'').replace(/\D/g,'').slice(-10);}
+
+async function revisarServidor(){
+  const el=$('#serverStatus');
+  try{
+    const r=await fetch(`${COBRANZA_SERVER}/cobranza/estado`);
+    const d=await r.json();
+    if(!r.ok||!d.ok) throw new Error(d.error||'No disponible');
+    if(d.configurada){
+      el.innerHTML='<span class="status-dot ok"></span>WhatsApp cobranza listo';
+    }else{
+      el.innerHTML='<span class="status-dot bad"></span>Falta elegir la sesión de cobranza';
+    }
+  }catch(e){
+    el.innerHTML='<span class="status-dot bad"></span>Servidor de cobranza sin conexión';
+  }
+}
+
+async function cargarDatos(){
+  $('#lista').innerHTML='<div class="empty">Cargando cuentas pendientes…</div>';
+  try{
+    const [clientesRes,notasRes,histRes]=await Promise.all([
+      sb.from('clientes').select('id,nombre,telefono').order('nombre'),
+      sb.from('notas_credito').select('id,folio,cliente_id,fecha,vence,total,saldo,estado,created_at').gt('saldo',0).order('created_at',{ascending:false}),
+      fetch(`${COBRANZA_SERVER}/cobranza/historial?limite=1000`).then(r=>r.ok?r.json():({recordatorios:[]})).catch(()=>({recordatorios:[]}))
+    ]);
+    if(clientesRes.error) throw clientesRes.error;
+    if(notasRes.error) throw notasRes.error;
+    historial=histRes.recordatorios||[];
+    const clientes=new Map((clientesRes.data||[]).map(c=>[String(c.id),c]));
+    const map=new Map();
+    for(const n of notasRes.data||[]){
+      const key=String(n.cliente_id);
+      const c=clientes.get(key)||{id:n.cliente_id,nombre:'Cliente',telefono:''};
+      if(!map.has(key)) map.set(key,{cliente:c,saldo:0,notas:[],vence:null});
+      const item=map.get(key);
+      item.saldo+=Number(n.saldo||0);
+      item.notas.push(n);
+      if(n.vence && (!item.vence || n.vence<item.vence)) item.vence=n.vence;
+    }
+    cuentas=[...map.values()].sort((a,b)=>a.cliente.nombre.localeCompare(b.cliente.nombre,'es'));
+    render();
+  }catch(e){
+    console.error(e);
+    $('#lista').innerHTML='<div class="empty">No se pudieron cargar las cuentas pendientes.</div>';
+    toast(e.message||'Error cargando datos','bad');
+  }
+}
+
+function ultimoRecordatorio(c){
+  const cid=String(c.cliente.id);
+  const tel=normalizarTelefono(c.cliente.telefono);
+  return historial.find(h=>String(h.cliente_id||'')===cid || (tel && normalizarTelefono(h.telefono)===tel));
+}
+function enviadoHoy(h){return h && h.fecha_local===new Date().toLocaleDateString('en-CA');}
+function badgeVence(v){
+  if(!v)return '<span class="badge neutral">Sin fecha</span>';
+  const today=new Date();today.setHours(0,0,0,0);const d=new Date(v+'T12:00:00');
+  const days=Math.round((d-today)/86400000);
+  if(days<0)return `<span class="badge bad">Vencida ${Math.abs(days)} d</span>`;
+  if(days===0)return '<span class="badge warn">Vence hoy</span>';
+  return `<span class="badge neutral">${fmtDate(v)}</span>`;
+}
+function render(){
+  const q=$('#buscar').value.trim().toLowerCase();
+  const rows=cuentas.filter(c=>`${c.cliente.nombre} ${c.cliente.telefono||''}`.toLowerCase().includes(q));
+  const total=cuentas.reduce((s,c)=>s+c.saldo,0);
+  const hoy=new Set(historial.filter(enviadoHoy).map(h=>h.cliente_id||h.telefono)).size;
+  $('#statClientes').textContent=cuentas.length;
+  $('#statSaldo').textContent=money(total);
+  $('#statHoy').textContent=hoy;
+  if(!rows.length){$('#lista').innerHTML='<div class="empty">No hay clientes que coincidan.</div>';return;}
+  $('#lista').innerHTML=rows.map(c=>{
+    const h=ultimoRecordatorio(c);
+    const phone=String(c.cliente.telefono||'').trim();
+    const listo=!!phone;
+    let aviso='<span class="badge neutral">Nunca</span>';
+    if(h){
+      if(h.estado==='enviado') aviso=`<span class="badge ok">${h.fecha_local===new Date().toLocaleDateString('en-CA')?'Enviado hoy':fmtDate(h.enviado_en||h.creado_en)}</span>`;
+      else if(h.estado==='en_cola'||h.estado==='enviando') aviso='<span class="badge warn">En cola</span>';
+      else if(h.estado==='error') aviso='<span class="badge bad">Error</span>';
+    }
+    return `<div class="row">
+      <div class="client">${esc(c.cliente.nombre)}<div class="phone">${esc(phone||'Sin teléfono')}</div></div>
+      <div class="money" data-label="Saldo interno">${money(c.saldo)}</div>
+      <div data-label="Notas">${c.notas.length}</div>
+      <div data-label="Vencimiento">${badgeVence(c.vence)}</div>
+      <div class="hide-md" data-label="Último aviso">${aviso}</div>
+      <div class="actions">
+        <button class="btn-light" onclick="verCuenta('${esc(String(c.cliente.id))}')">Ver cuenta</button>
+        <button class="btn-wa" ${listo?'':'disabled'} onclick="abrirEnvio('${esc(String(c.cliente.id))}')">Recordar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buscarCuenta(id){return cuentas.find(c=>String(c.cliente.id)===String(id));}
+function verCuenta(id){
+  const c=buscarCuenta(id);if(!c)return;
+  $('#cuentaTitulo').textContent=c.cliente.nombre;
+  $('#cuentaResumen').textContent=`Saldo interno: ${money(c.saldo)} · ${c.notas.length} nota(s)`;
+  $('#cuentaNotas').innerHTML=c.notas.map(n=>`<li><span><b>${esc(n.folio||'Nota')}</b><br><small>${fmtDate(n.fecha)}${n.vence?' · vence '+fmtDate(n.vence):''}</small></span><strong>${money(n.saldo)}</strong></li>`).join('');
+  $('#modalCuenta').classList.add('show');
+}
+function abrirEnvio(id){
+  const c=buscarCuenta(id);if(!c||!c.cliente.telefono)return;
+  cuentaSeleccionada=c;
+  $('#modalCliente').textContent=`${c.cliente.nombre} · ${c.cliente.telefono}`;
+  $('#modalInterno').textContent=`Control interno: saldo pendiente ${money(c.saldo)} en ${c.notas.length} nota(s).`;
+  $('#previewMensaje').textContent=MENSAJE;
+  $('#modalEnviar').classList.add('show');
+}
+
+async function enviar(forzar=false){
+  if(enviando||!cuentaSeleccionada)return;
+  enviando=true;const b=$('#btnConfirmarEnvio');b.disabled=true;b.textContent='Enviando…';
+  try{
+    const c=cuentaSeleccionada;
+    const r=await fetch(`${COBRANZA_SERVER}/cobranza/enviar-recordatorio`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telefono:c.cliente.telefono,cliente_id:c.cliente.id,cliente_nombre:c.cliente.nombre,forzar})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(r.status===409&&d.duplicado&&!forzar){
+      if(confirm('Ya se envió o programó un recordatorio para este cliente hoy. ¿Enviar otro de todas formas?')){
+        enviando=false;b.disabled=false;b.textContent='Enviar por WhatsApp';return enviar(true);
+      }
+      throw new Error('Envío cancelado para evitar duplicado.');
+    }
+    if(!r.ok||!d.ok) throw new Error(d.error||`Error ${r.status}`);
+    cerrarModal('modalEnviar');
+    toast(`Recordatorio de ${c.cliente.nombre} agregado a la cola.`, 'ok');
+    await new Promise(res=>setTimeout(res,700));
+    await cargarDatos();
+  }catch(e){
+    if(!String(e.message).includes('cancelado')) toast(e.message||'No se pudo enviar','bad');
+  }finally{
+    enviando=false;b.disabled=false;b.textContent='Enviar por WhatsApp';
+  }
+}
+
+$('#btnConfirmarEnvio').addEventListener('click',()=>enviar(false));
+$('#buscar').addEventListener('input',render);
+$('#btnActualizar').addEventListener('click',async()=>{await revisarServidor();await cargarDatos();});
+for(const id of ['modalEnviar','modalCuenta']){$('#'+id).addEventListener('click',e=>{if(e.target.id===id)cerrarModal(id);});}
+revisarServidor();cargarDatos();setInterval(revisarServidor,30000);
+</script>
+</body>
+</html>
