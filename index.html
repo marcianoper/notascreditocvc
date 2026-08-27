@@ -543,6 +543,7 @@ async function imprimirSilenciosoTexto(texto){
 
     const STORE_NAME = "Carnes y Vísceras del Centro";
     const CAJA_KG = 27.22;
+    const CAJA_KG_CANADIAN = 27.28;
     const VENTA_BODEGA_NOMBRE = "Venta Bodega";
 
     const BASCULA_ID = "torrey_1";
@@ -864,7 +865,9 @@ async function imprimirSilenciosoTexto(texto){
       let kgForDb = Number.isFinite(q) ? q : 0;
 
       if(isCajaCompleta){
-        if(name.includes("AZUL") || name.includes("CANADIAN") || name.includes("NATIONAL") || name.includes("WASHINGTON")){
+        if(name.includes("CANADIAN")){
+          kgForDb = CAJA_KG_CANADIAN;
+        } else if(name.includes("AZUL") || name.includes("NATIONAL") || name.includes("WASHINGTON")){
           kgForDb = CAJA_KG;
         }
       }
@@ -1440,7 +1443,10 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       const pz = Number(pPzas.value || 0);
       if(!pz || pz <= 0) return;
 
-      const kg = pz * CAJA_KG;
+      const esCanadian = normalizeName(prod) === normalizeName('Caja Menudo Canadian');
+      const pesoCaja = esCanadian ? CAJA_KG_CANADIAN : CAJA_KG;
+
+      const kg = pz * pesoCaja;
       pKg.value = to2(kg);
     }
 
