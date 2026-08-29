@@ -2798,17 +2798,17 @@ if(USAR_IMPRESION_SILENCIOSA){
           }
           .paper-page:last-child{ page-break-after:auto; break-after:auto; }
 
-          /* 281 x 194 mm, al girarse, ocupa 194 x 281 mm dentro del A4 vertical */
+          /* Carta vertical, contenido girado 90° hacia el lado contrario para igualar el PDF de ejemplo */
           .rotated-report{
             position:absolute;
-            left:215.9mm;
-            top:6mm;
+            left:209.9mm;
+            top:273.4mm;
             width:267.4mm;
             height:203.9mm;
             box-sizing:border-box;
             padding:4mm 5mm;
             transform-origin:top left;
-            transform:rotate(90deg);
+            transform:rotate(-90deg);
             font-size:11px;
             overflow:hidden;
           }
