@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VDC360 — Notas a Crédito</title>
+  <title>VDC360° — Notas a Crédito</title>
 
   <style>
     :root{--ink:#111;--brand:#0a7a3b;--muted:#6b7280;--bg:#f6f7f8;--card:#fff}
@@ -159,6 +159,19 @@
     }
     .menuPanel button:hover{ background:#f6f7f8; }
     .menuPanel button.danger{ border-color:#fee2e2; color:#b91c1c; }
+
+    .printStatus{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 9px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+    .printStatus.pending{ background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+    .printStatus.done{ background:#eef7f0; color:#0a7a3b; border:1px solid #cde7d4; }
   </style>
 </head>
 
@@ -453,8 +466,9 @@
             <tr>
               <th>Folio</th>
               <th>Cliente</th>
-              <th>Saldo</th>
               <th>Estado</th>
+              <th>Impresión</th>
+              <th>WhatsApp</th>
               <th style="text-align:right">Acciones</th>
             </tr>
           </thead>
@@ -499,7 +513,7 @@ const USAR_IMPRESION_SILENCIOSA = true;
 
 // 📤 MENSAJERÍA DIRECTA VDC360 → OpenWA
 // Este servicio Python debe estar ejecutándose en la misma computadora.
-const MENSAJERIA_VDC_URL = "http://localhost:5001/enviar-mensaje";
+const MENSAJERIA_VDC_URL = "http://192.168.1.84:5001/enviar-mensaje";
 
 async function imprimirSilenciosoTexto(texto){
   try{
@@ -529,6 +543,7 @@ async function imprimirSilenciosoTexto(texto){
 
     const STORE_NAME = "Carnes y Vísceras del Centro";
     const CAJA_KG = 27.22;
+    const CAJA_KG_CANADIAN = 27.28;
     const VENTA_BODEGA_NOMBRE = "Venta Bodega";
 
     const BASCULA_ID = "torrey_1";
@@ -850,7 +865,9 @@ async function imprimirSilenciosoTexto(texto){
       let kgForDb = Number.isFinite(q) ? q : 0;
 
       if(isCajaCompleta){
-        if(name.includes("AZUL") || name.includes("CANADIAN") || name.includes("NATIONAL") || name.includes("WASHINGTON")){
+        if(name.includes("CANADIAN")){
+          kgForDb = CAJA_KG_CANADIAN;
+        } else if(name.includes("AZUL") || name.includes("NATIONAL") || name.includes("WASHINGTON")){
           kgForDb = CAJA_KG;
         }
       }
@@ -1426,7 +1443,10 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       const pz = Number(pPzas.value || 0);
       if(!pz || pz <= 0) return;
 
-      const kg = pz * CAJA_KG;
+      const esCanadian = normalizeName(prod) === normalizeName('Caja Menudo Canadian');
+      const pesoCaja = esCanadian ? CAJA_KG_CANADIAN : CAJA_KG;
+
+      const kg = pz * pesoCaja;
       pKg.value = to2(kg);
     }
 
@@ -1957,14 +1977,14 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
 
       const { data, error } = await sb
         .from('notas_credito')
-        .select('id,folio,saldo,estado,clientes(nombre),cliente_id,created_at')
+        .select('id,folio,estado,impreso,impreso_at,impresiones,whatsapp_enviado,whatsapp_enviado_at,whatsapp_envios,clientes(nombre),cliente_id,created_at')
         .eq('fecha', f)
         .eq('estado','abierta')
         .order('created_at', { ascending:false });
 
       if(error){
         console.error(error);
-        bandejaBody.innerHTML = `<tr><td colspan="5" class="muted">Error cargando bandeja</td></tr>`;
+        bandejaBody.innerHTML = `<tr><td colspan="6" class="muted">Error cargando bandeja</td></tr>`;
         return;
       }
 
@@ -1982,8 +2002,17 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         <tr>
           <td>${r.folio}</td>
           <td>${productoBonito(r.clientes?.nombre||'')}</td>
-          <td>$${to2(r.saldo||0)}</td>
           <td>${r.estado||'abierta'}</td>
+          <td>
+            ${r.impreso
+              ? `<span class="printStatus done" title="${r.impreso_at ? new Date(r.impreso_at).toLocaleString() : 'Impresión registrada'}">✅ Impresa${Number(r.impresiones||0) > 1 ? ` · ${r.impresiones} veces` : ''}</span>`
+              : `<span class="printStatus pending">⚠️ No impresa</span>`}
+          </td>
+          <td>
+            ${r.whatsapp_enviado
+              ? `<span class="printStatus done" title="${r.whatsapp_enviado_at ? new Date(r.whatsapp_enviado_at).toLocaleString() : 'Envío registrado'}">✅ Enviado${Number(r.whatsapp_envios||0) > 1 ? ` · ${r.whatsapp_envios} veces` : ''}</span>`
+              : `<span class="printStatus pending">⚠️ No enviado</span>`}
+          </td>
           <td style="text-align:right">
             <details class="actionMenu">
               <summary>Acciones ▾</summary>
@@ -2145,14 +2174,66 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       return resultado;
     }
 
-    async function waNota(nota_id){
-      if(waBusy){
-        mostrarEstadoWA('Ya se está enviando una nota. Espera un momento…', 'cargando');
+    async function registrarNotaWhatsApp(nota){
+      if(!nota?.id) return false;
+
+      const nuevoConteo = Number(nota.whatsapp_envios || 0) + 1;
+      const ahora = new Date().toISOString();
+
+      const { error } = await sb
+        .from('notas_credito')
+        .update({
+          whatsapp_enviado: true,
+          whatsapp_enviado_at: ahora,
+          whatsapp_envios: nuevoConteo
+        })
+        .eq('id', nota.id);
+
+      if(error){
+        console.error('No se pudo registrar el envío de WhatsApp:', error);
+        alert('La nota sí se envió por WhatsApp, pero no pude guardar el estado en Supabase.');
         return false;
       }
 
+      if(notaA?.id === nota.id){
+        notaA.whatsapp_enviado = true;
+        notaA.whatsapp_enviado_at = ahora;
+        notaA.whatsapp_envios = nuevoConteo;
+      }
+      if(notaB?.id === nota.id){
+        notaB.whatsapp_enviado = true;
+        notaB.whatsapp_enviado_at = ahora;
+        notaB.whatsapp_envios = nuevoConteo;
+      }
+
+      await loadBandeja();
+      return true;
+    }
+
+    function confirmarReenvioWhatsApp(nota){
+      if(!nota?.whatsapp_enviado) return true;
+
+      const cuando = nota.whatsapp_enviado_at
+        ? new Date(nota.whatsapp_enviado_at).toLocaleString()
+        : 'fecha no registrada';
+      const veces = Number(nota.whatsapp_envios || 1);
+
+      return confirm(
+        `⚠️ ESTA NOTA YA FUE ENVIADA POR WHATSAPP\n\n` +
+        `Folio: ${nota.folio}\n` +
+        `Último envío: ${cuando}\n` +
+        `Envíos registrados: ${veces}\n\n` +
+        `¿Quieres ENVIARLA OTRA VEZ de todos modos?`
+      );
+    }
+
+    async function waNota(nota_id){
+      if(waBusy){
+        mostrarEstadoWA('Ya se está enviando una nota. Espera un momento…', 'cargando');
+        return;
+      }
+
       waBusy = true;
-      mostrarEstadoWA('Enviando nota por WhatsApp…', 'cargando');
 
       try{
         const { data: nota, error: notaError } = await sb
@@ -2164,6 +2245,13 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         if(notaError || !nota){
           throw new Error('No se pudo cargar la nota.');
         }
+
+        if(!confirmarReenvioWhatsApp(nota)){
+          waBusy = false;
+          return;
+        }
+
+        mostrarEstadoWA('Enviando nota por WhatsApp…', 'cargando');
 
         const { data: det, error: detError } = await sb
           .from('notas_detalle')
@@ -2193,13 +2281,12 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         const mensaje = plantillaWA(nota, det || [], nombre);
 
         await enviarMensajeOpenWA(digits, mensaje);
+        await registrarNotaWhatsApp(nota);
 
         mostrarEstadoWA(`✅ Nota ${nota.folio} enviada a ${nombre}.`, 'ok');
-        return true;
       }catch(error){
         console.error('Error al enviar la nota por OpenWA:', error);
         mostrarEstadoWA(`❌ ${error.message || 'No se pudo enviar la nota.'}`, 'error');
-        return false;
       }finally{
         waBusy = false;
       }
@@ -2255,14 +2342,74 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       window.print();
       setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
     }
+async function registrarNotaImpresa(nota){
+  if(!nota?.id) return false;
+
+  const nuevoConteo = Number(nota.impresiones || 0) + 1;
+  const ahora = new Date().toISOString();
+
+  const { error } = await sb
+    .from('notas_credito')
+    .update({
+      impreso: true,
+      impreso_at: ahora,
+      impresiones: nuevoConteo
+    })
+    .eq('id', nota.id);
+
+  if(error){
+    console.error('No se pudo registrar la impresión:', error);
+    alert('La nota sí se mandó a imprimir, pero no pude guardar el estado de impresión en Supabase.');
+    return false;
+  }
+
+  if(notaA?.id === nota.id){
+    notaA.impreso = true;
+    notaA.impreso_at = ahora;
+    notaA.impresiones = nuevoConteo;
+  }
+  if(notaB?.id === nota.id){
+    notaB.impreso = true;
+    notaB.impreso_at = ahora;
+    notaB.impresiones = nuevoConteo;
+  }
+
+  await loadBandeja();
+  return true;
+}
+
+function confirmarReimpresion(nota){
+  if(!nota?.impreso) return true;
+
+  const cuando = nota.impreso_at
+    ? new Date(nota.impreso_at).toLocaleString()
+    : 'fecha no registrada';
+  const veces = Number(nota.impresiones || 1);
+
+  return confirm(
+    `⚠️ ESTA NOTA YA FUE IMPRESA\n\n` +
+    `Folio: ${nota.folio}\n` +
+    `Última impresión: ${cuando}\n` +
+    `Impresiones registradas: ${veces}\n\n` +
+    `¿Quieres REIMPRIMIRLA de todos modos?`
+  );
+}
+
 async function imprimirNota80mm(nota_id){
   await saveNotaObs();
 
-  const { data: nota } = await sb
+  const { data: nota, error: notaError } = await sb
     .from('notas_credito')
     .select('*, clientes(nombre)')
     .eq('id', nota_id)
     .single();
+
+  if(notaError || !nota){
+    console.error(notaError);
+    return alert('No se pudo cargar la nota para imprimir.');
+  }
+
+  if(!confirmarReimpresion(nota)) return;
 
   const { data: det } = await sb
     .from('notas_detalle')
@@ -2445,6 +2592,7 @@ if(USAR_IMPRESION_SILENCIOSA){
       }
     }
 
+    await registrarNotaImpresa(nota);
     return;
 
   }catch(err){
@@ -2459,7 +2607,10 @@ if(USAR_IMPRESION_SILENCIOSA){
   win.document.close();
   win.focus();
 
-  setTimeout(()=>{ win.print(); }, 300);
+  setTimeout(async ()=>{
+    win.print();
+    await registrarNotaImpresa(nota);
+  }, 300);
 }
     async function imprimirDiaA4(){
       const f = diaFecha.value || todayISO();
@@ -2547,7 +2698,7 @@ if(USAR_IMPRESION_SILENCIOSA){
           <meta charset="utf-8" />
           <title>Reporte diario</title>
           <style>
-            @page { size: letter landscape; margin: 8mm; }
+            @page { size: A4 landscape; margin: 8mm; }
 
             body {
               font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -2583,15 +2734,23 @@ if(USAR_IMPRESION_SILENCIOSA){
               background: #fafafa;
             }
 
+            .detalle-page {
+              page-break-before: always;
+              break-before: page;
+            }
+
             #columns {
               column-count: 2;
               column-gap: 5mm;
+              column-fill: auto;
             }
 
             .client-group {
+              display: inline-block;
+              width: 100%;
               break-inside: avoid;
               page-break-inside: avoid;
-              margin-bottom: 3mm;
+              margin: 0 0 3mm 0;
             }
 
             table {
@@ -2656,7 +2815,7 @@ if(USAR_IMPRESION_SILENCIOSA){
             </table>
           </div>
 
-          <div class="section">
+          <div class="section detalle-page">
             <h4>Detalle por cliente</h4>
             <div id="columns">
       `;
@@ -2820,16 +2979,7 @@ if(USAR_IMPRESION_SILENCIOSA){
 
     async function cerrarNotaById(nota_id){
       if(!nota_id) return;
-      if(!confirm('¿Cerrar esta nota y enviarla automáticamente por WhatsApp?')) return;
-
-      const enviado = await waNota(nota_id);
-
-      if(!enviado){
-        const cerrarDeTodosModos = confirm(
-          'No se pudo enviar el WhatsApp. ¿Deseas cerrar la nota de todos modos?'
-        );
-        if(!cerrarDeTodosModos) return;
-      }
+      if(!confirm('¿Cerrar esta nota?')) return;
 
       const { error } = await sb
         .from('notas_credito')
@@ -2847,50 +2997,17 @@ if(USAR_IMPRESION_SILENCIOSA){
 
       await renderVista();
       await loadBandeja();
-
-      alert(enviado
-        ? '✅ Nota enviada por WhatsApp y cerrada correctamente'
-        : '✅ Nota cerrada sin envío de WhatsApp'
-      );
+      alert('✅ Nota cerrada');
     }
 
     async function cerrarNota(){
       const n = activeNota();
       if(!n) return alert('Sin nota');
 
-      if(!confirm('¿Cerrar esta nota y enviarla automáticamente por WhatsApp?')) return;
-
-      const nota_id = n.id;
-      const enviado = await waNota(nota_id);
-
-      if(!enviado){
-        const cerrarDeTodosModos = confirm(
-          'No se pudo enviar el WhatsApp. ¿Deseas cerrar la nota de todos modos?'
-        );
-        if(!cerrarDeTodosModos) return;
-      }
-
-      const { error } = await sb
-        .from('notas_credito')
-        .update({estado:'cerrada'})
-        .eq('id', nota_id);
-
-      if(error){
-        console.error(error);
-        alert('No se pudo cerrar la nota');
-        return;
-      }
-
-      if(slotActive === 'A') notaA = null;
-      else notaB = null;
-
+      await sb.from('notas_credito').update({estado:'cerrada'}).eq('id', n.id);
       await renderVista();
       await loadBandeja();
-
-      alert(enviado
-        ? '✅ Nota enviada por WhatsApp y cerrada correctamente'
-        : '✅ Nota cerrada sin envío de WhatsApp'
-      );
+      alert('✅ Nota cerrada');
     }
   </script>
 </body>
