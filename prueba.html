@@ -2634,8 +2634,8 @@ if(USAR_IMPRESION_SILENCIOSA){
         .order('created_at');
 
       const detalles = det || [];
-
       const byClient = {};
+
       (notas || []).forEach(n=>{
         const c = productoBonito(n.clientes?.nombre || '—');
         if(!byClient[c]) byClient[c] = { items: [], totalImporte: 0 };
@@ -2644,7 +2644,6 @@ if(USAR_IMPRESION_SILENCIOSA){
       detalles.forEach(d=>{
         const nota = (notas || []).find(x => x.id === d.nota_id);
         const cliente = productoBonito(nota?.clientes?.nombre || '—');
-
         if(!byClient[cliente]) byClient[cliente] = { items: [], totalImporte: 0 };
 
         byClient[cliente].items.push({
@@ -2655,27 +2654,17 @@ if(USAR_IMPRESION_SILENCIOSA){
           piezas: d.piezas,
           importe: Number(d.importe || 0)
         });
-
         byClient[cliente].totalImporte += Number(d.importe || 0);
       });
 
       const resumenProductos = {};
-
       detalles.forEach(d=>{
         const prod = productoBonito(d.producto || 'Sin producto');
-
         if(!resumenProductos[prod]){
-          resumenProductos[prod] = {
-            kg: 0,
-            pzas: 0,
-            tienePzas: false,
-            importe: 0
-          };
+          resumenProductos[prod] = { kg:0, pzas:0, tienePzas:false, importe:0 };
         }
-
         resumenProductos[prod].kg += Number(d.cantidad || 0);
         resumenProductos[prod].importe += Number(d.importe || 0);
-
         if(d.piezas != null && d.piezas !== ''){
           resumenProductos[prod].pzas += Number(d.piezas || 0);
           resumenProductos[prod].tienePzas = true;
@@ -2685,189 +2674,52 @@ if(USAR_IMPRESION_SILENCIOSA){
       const resumenOrdenado = Object.entries(resumenProductos)
         .sort((a,b)=> a[0].localeCompare(b[0], 'es'));
 
-      const totalDia = detalles.reduce((a, b) => a + Number(b.importe || 0), 0);
-      const totalKgDia = detalles.reduce((a, b) => a + Number(b.cantidad || 0), 0);
-
+      const totalDia = detalles.reduce((a,b)=> a + Number(b.importe || 0), 0);
+      const totalKgDia = detalles.reduce((a,b)=> a + Number(b.cantidad || 0), 0);
       diaResumen.textContent =
         `Clientes: ${Object.keys(byClient).length} · Kg totales: ${to2(totalKgDia)} · Total día: $${to2(totalDia)}`;
 
-      let html = `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-          <meta charset="utf-8" />
-          <title>Reporte diario</title>
-          <style>
-            @page { size: A4 landscape; margin: 8mm; }
+      const clientEntries = Object.entries(byClient);
+      const CLIENTES_POR_PAGINA = 6;
+      const clientChunks = [];
+      for(let i=0; i<clientEntries.length; i+=CLIENTES_POR_PAGINA){
+        clientChunks.push(clientEntries.slice(i, i + CLIENTES_POR_PAGINA));
+      }
 
-            body {
-              font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-              font-size: 11px;
-              margin: 0;
-              color: #111;
-            }
-
-            h3 {
-              margin: 0 0 3mm 0;
-              font-size: 15px;
-            }
-
-            h4 {
-              margin: 3mm 0 1.5mm 0;
-              font-size: 11px;
-            }
-
-            .subinfo {
-              font-size: 10px;
-              margin-bottom: 3mm;
-            }
-
-            .section {
-              margin-bottom: 5mm;
-            }
-
-            .summary-box {
-              border: 1px solid #bbb;
-              padding: 3mm;
-              border-radius: 3mm;
-              margin-bottom: 4mm;
-              background: #fafafa;
-            }
-
-            .detalle-page {
-              page-break-before: always;
-              break-before: page;
-            }
-
-            #columns {
-              column-count: 2;
-              column-gap: 5mm;
-              column-fill: auto;
-            }
-
-            .client-group {
-              display: inline-block;
-              width: 100%;
-              break-inside: avoid;
-              page-break-inside: avoid;
-              margin: 0 0 3mm 0;
-            }
-
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-
-            th, td {
-              border: 1px solid #ccc;
-              padding: 2px 3px;
-              font-size: 9.5px;
-              text-align: left;
-              vertical-align: top;
-            }
-
-            th {
-              background: #f3f3f3;
-            }
-
-            .ta-right {
-              text-align: right;
-            }
-
-            .small {
-              font-size: 9px;
-              color: #555;
-            }
-          </style>
-        </head>
-        <body>
-          <h3>Reporte diario — ${f}</h3>
-
-          <div class="subinfo">
-            Clientes: ${Object.keys(byClient).length}
-            &nbsp; · &nbsp;
-            Kg totales del día: ${to2(totalKgDia)}
-            &nbsp; · &nbsp;
-            Total día: $${to2(totalDia)}
-          </div>
-
-          <div class="section summary-box">
-            <h4>Resumen general por producto</h4>
-            <table>
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th class="ta-right">Kg totales</th>
-                  <th class="ta-right">Pzas totales</th>
-                  <th class="ta-right">Importe total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${resumenOrdenado.map(([prod, r])=>`
-                  <tr>
-                    <td>${productoBonito(prod)}</td>
-                    <td class="ta-right">${to2(r.kg)}</td>
-                    <td class="ta-right">${r.tienePzas ? Math.round(r.pzas) : ''}</td>
-                    <td class="ta-right">$${to2(r.importe)}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="section detalle-page">
-            <h4>Detalle por cliente</h4>
-            <div id="columns">
-      `;
-
-      Object.entries(byClient).forEach(([cliente, pack])=>{
+      const clienteHtml = ([cliente, pack])=>{
         const resumenCliente = {};
         const nombreOriginal = {};
-
         (pack.items || []).forEach(d=>{
           const prodOriginal = productoBonito((d.producto || 'Sin producto').trim());
           const prodKey = prodOriginal.toLowerCase();
-
           if(!resumenCliente[prodKey]){
             resumenCliente[prodKey] = 0;
             nombreOriginal[prodKey] = prodOriginal;
           }
-
           resumenCliente[prodKey] += Number(d.cantidad || 0);
         });
 
         const resumenClienteOrdenado = Object.entries(resumenCliente)
           .sort((a,b)=> nombreOriginal[a[0]].localeCompare(nombreOriginal[b[0]], 'es'));
+        const kgTotalCliente = (pack.items || []).reduce((acc,d)=>acc + Number(d.cantidad || 0),0);
 
-        const kgTotalCliente = (pack.items || []).reduce((acc, d)=> acc + Number(d.cantidad || 0), 0);
-
-        html += `
+        return `
           <div class="client-group">
             <h4>${cliente} — Total: $${to2(pack.totalImporte)}</h4>
-
-            <div class="small" style="margin-bottom:2mm;">
-              Kg totales del cliente: <b>${to2(kgTotalCliente)}</b>
+            <div class="small">Kg totales del cliente: ${to2(kgTotalCliente)}</div>
+            <div class="client-totals">
+              <b>Totales por producto</b>
+              ${resumenClienteOrdenado.map(([prodKey,totalKg])=>
+                `<div><b>Total ${nombreOriginal[prodKey]}</b> = ${to2(totalKg)} kg</div>`
+              ).join('')}
             </div>
-
-            <div style="margin-bottom:2mm; padding:2mm; border:1px solid #ccc; background:#fafafa;">
-              <div style="font-weight:700; margin-bottom:1.5mm;">Totales por producto</div>
-              ${resumenClienteOrdenado.map(([prodKey, totalKg])=>`
-                <div><b>Total ${nombreOriginal[prodKey]}</b> = ${to2(totalKg)} kg</div>
-              `).join('')}
-            </div>
-
             <table>
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Hora</th>
-                  <th>Producto</th>
-                  <th class="ta-right">Kg</th>
-                  <th class="ta-right">Pzas</th>
-                </tr>
-              </thead>
+              <thead><tr>
+                <th>Folio</th><th>Hora</th><th>Producto</th>
+                <th class="ta-right">Kg</th><th class="ta-right">Pzas</th>
+              </tr></thead>
               <tbody>
-                ${(pack.items || []).map(d => `
+                ${(pack.items || []).map(d=>`
                   <tr>
                     <td>${d.folio}</td>
                     <td>${new Date(d.created_at).toLocaleTimeString()}</td>
@@ -2878,26 +2730,147 @@ if(USAR_IMPRESION_SILENCIOSA){
                 `).join('')}
               </tbody>
             </table>
+          </div>`;
+      };
+
+      let pagesHtml = `
+        <section class="paper-page">
+          <div class="rotated-report">
+            <h3>Reporte diario — ${f}</h3>
+            <div class="subinfo">
+              Clientes: ${Object.keys(byClient).length}
+              &nbsp; · &nbsp; Kg totales del día: ${to2(totalKgDia)}
+              &nbsp; · &nbsp; Total día: $${to2(totalDia)}
+            </div>
+            <div class="summary-box">
+              <h4>Resumen general por producto</h4>
+              <table>
+                <thead><tr>
+                  <th>Producto</th>
+                  <th class="ta-right">Kg totales</th>
+                  <th class="ta-right">Pzas totales</th>
+                  <th class="ta-right">Importe total</th>
+                </tr></thead>
+                <tbody>
+                  ${resumenOrdenado.map(([prod,r])=>`
+                    <tr>
+                      <td>${productoBonito(prod)}</td>
+                      <td class="ta-right">${to2(r.kg)}</td>
+                      <td class="ta-right">${r.tienePzas ? Math.round(r.pzas) : ''}</td>
+                      <td class="ta-right">$${to2(r.importe)}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+            <h4 style="margin-top:3mm">Detalle por cliente</h4>
           </div>
-        `;
+        </section>`;
+
+      clientChunks.forEach(chunk=>{
+        pagesHtml += `
+          <section class="paper-page">
+            <div class="rotated-report">
+              <div class="columns">
+                ${chunk.map(clienteHtml).join('')}
+              </div>
+            </div>
+          </section>`;
       });
 
-      html += `
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
+      const html = `<!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8" />
+        <title>Reporte diario</title>
+        <style>
+          /* Tal como el PDF de ejemplo: hoja vertical y TODO el reporte girado 90° */
+          @page { size: A4 portrait; margin: 0; }
+          html, body { margin:0; padding:0; background:#fff; color:#111; }
+          body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+
+          .paper-page{
+            position:relative;
+            width:210mm;
+            height:297mm;
+            overflow:hidden;
+            page-break-after:always;
+            break-after:page;
+          }
+          .paper-page:last-child{ page-break-after:auto; break-after:auto; }
+
+          /* 281 x 194 mm, al girarse, ocupa 194 x 281 mm dentro del A4 vertical */
+          .rotated-report{
+            position:absolute;
+            left:210mm;
+            top:8mm;
+            width:281mm;
+            height:194mm;
+            box-sizing:border-box;
+            padding:6mm 7mm;
+            transform-origin:top left;
+            transform:rotate(90deg);
+            font-size:10px;
+            overflow:hidden;
+          }
+
+          h3{ margin:0 0 2.5mm 0; font-size:15px; }
+          h4{ margin:2mm 0 1.2mm 0; font-size:10.5px; }
+          .subinfo{ font-size:9px; margin-bottom:2.5mm; }
+          .summary-box{
+            border:1px solid #aaa;
+            padding:2.5mm;
+            border-radius:3mm;
+            margin-bottom:3mm;
+          }
+          table{ width:100%; border-collapse:collapse; }
+          th,td{
+            border:1px solid #bbb;
+            padding:1.5px 2.5px;
+            font-size:8.5px;
+            text-align:left;
+            vertical-align:top;
+          }
+          th{ background:#f3f3f3; font-weight:700; }
+          .ta-right{ text-align:right; }
+          .small{ font-size:8px; color:#555; margin-bottom:1mm; }
+
+          .columns{
+            column-count:2;
+            column-gap:5mm;
+            height:180mm;
+            column-fill:auto;
+          }
+          .client-group{
+            display:inline-block;
+            width:100%;
+            break-inside:avoid;
+            page-break-inside:avoid;
+            margin:0 0 2.5mm 0;
+          }
+          .client-group h4{ font-size:9.5px; margin:0 0 .8mm 0; }
+          .client-totals{
+            border:1px solid #bbb;
+            padding:1.4mm;
+            margin-bottom:1.2mm;
+            font-size:8px;
+          }
+
+          @media screen{
+            body{ background:#ddd; }
+            .paper-page{ margin:8px auto; background:#fff; box-shadow:0 0 4px rgba(0,0,0,.25); }
+          }
+        </style>
+      </head>
+      <body>${pagesHtml}</body>
+      </html>`;
 
       const win = window.open('', '_blank', 'width=1200,height=800');
       win.document.open();
       win.document.write(html);
       win.document.close();
       win.focus();
-
-      setTimeout(() => { win.print(); }, 400);
+      setTimeout(()=>{ win.print(); }, 500);
     }
-
     async function exportDiaCSV(){
       const f = diaFecha.value || todayISO();
 
