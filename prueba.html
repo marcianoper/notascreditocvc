@@ -2680,11 +2680,45 @@ if(USAR_IMPRESION_SILENCIOSA){
         `Clientes: ${Object.keys(byClient).length} · Kg totales: ${to2(totalKgDia)} · Total día: $${to2(totalDia)}`;
 
       const clientEntries = Object.entries(byClient);
-      const CLIENTES_POR_PAGINA = 5;
-      const clientChunks = [];
-      for(let i=0; i<clientEntries.length; i+=CLIENTES_POR_PAGINA){
-        clientChunks.push(clientEntries.slice(i, i + CLIENTES_POR_PAGINA));
+
+      // Distribución dinámica como el reporte 28-08:
+      // en lugar de forzar 5 clientes por hoja, calculamos el espacio real
+      // que ocupa cada cliente y llenamos 2 columnas sin cortar bloques.
+      function clientUnits([cliente, pack]){
+        const productos = new Set((pack.items || []).map(d =>
+          productoBonito((d.producto || 'Sin producto').trim()).toLowerCase()
+        )).size;
+        const partidas = (pack.items || []).length;
+        return 4.2 + (productos * 1.20) + (partidas * 1.18);
       }
+
+      const COL_CAP = 45;
+      const clientPages = [];
+      let page = { left:[], right:[], leftUnits:0, rightUnits:0, side:'left' };
+
+      for(const entry of clientEntries){
+        const u = clientUnits(entry);
+
+        if(page.side === 'left'){
+          if(page.left.length === 0 || page.leftUnits + u <= COL_CAP){
+            page.left.push(entry);
+            page.leftUnits += u;
+            continue;
+          }
+          page.side = 'right';
+        }
+
+        if(page.right.length === 0 || page.rightUnits + u <= COL_CAP){
+          page.right.push(entry);
+          page.rightUnits += u;
+          continue;
+        }
+
+        clientPages.push(page);
+        page = { left:[entry], right:[], leftUnits:u, rightUnits:0, side:'left' };
+      }
+
+      if(page.left.length || page.right.length) clientPages.push(page);
 
       const clienteHtml = ([cliente, pack])=>{
         const resumenCliente = {};
@@ -2766,12 +2800,13 @@ if(USAR_IMPRESION_SILENCIOSA){
           </div>
         </section>`;
 
-      clientChunks.forEach(chunk=>{
+      clientPages.forEach(pg=>{
         pagesHtml += `
           <section class="paper-page">
             <div class="rotated-report">
-              <div class="columns">
-                ${chunk.map(clienteHtml).join('')}
+              <div class="client-columns">
+                <div class="client-col">${pg.left.map(clienteHtml).join('')}</div>
+                <div class="client-col">${pg.right.map(clienteHtml).join('')}</div>
               </div>
             </div>
           </section>`;
@@ -2834,18 +2869,22 @@ if(USAR_IMPRESION_SILENCIOSA){
           .ta-right{ text-align:right; }
           .small{ font-size:9px; color:#555; margin-bottom:1mm; }
 
-          .columns{
-            column-count:2;
-            column-gap:5mm;
-            height:190mm;
-            column-fill:auto;
+          .client-columns{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:5mm;
+            align-items:start;
+            width:100%;
+          }
+          .client-col{
+            min-width:0;
           }
           .client-group{
             display:inline-block;
             width:100%;
             break-inside:avoid;
             page-break-inside:avoid;
-            margin:0 0 2.5mm 0;
+            margin:0 0 2.2mm 0;
           }
           .client-group h4{ font-size:10.5px; margin:0 0 .8mm 0; }
           .client-totals{
