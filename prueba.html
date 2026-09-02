@@ -552,9 +552,8 @@
 const IMPRESION_SILENCIOSA_URL = "http://192.168.1.84:5050/imprimir";
 const USAR_IMPRESION_SILENCIOSA = true;
 
-// 📤 MENSAJERÍA DIRECTA VDC360 → OpenWA
-// Este servicio Python debe estar ejecutándose en la misma computadora.
-const MENSAJERIA_VDC_URL = "http://192.168.1.84:5001/enviar-mensaje";
+// 📲 WHATSAPP MANUAL VDC360 → wa.me
+// Abre WhatsApp con el mensaje preparado; el usuario pulsa Enviar manualmente.
 
 async function imprimirSilenciosoTexto(texto){
   try{
@@ -2290,8 +2289,8 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
           </td>
           <td>
             ${r.whatsapp_enviado
-              ? `<span class="printStatus done" title="${r.whatsapp_enviado_at ? new Date(r.whatsapp_enviado_at).toLocaleString() : 'Envío registrado'}">✅ Enviado${Number(r.whatsapp_envios||0) > 1 ? ` · ${r.whatsapp_envios} veces` : ''}</span>`
-              : `<span class="printStatus pending">⚠️ No enviado</span>`}
+              ? `<span class="printStatus done" title="${r.whatsapp_enviado_at ? new Date(r.whatsapp_enviado_at).toLocaleString() : 'WhatsApp abierto'}">✅ WA abierto${Number(r.whatsapp_envios||0) > 1 ? ` · ${r.whatsapp_envios} veces` : ''}</span>`
+              : `<span class="printStatus pending">⚠️ WA pendiente</span>`}
           </td>
           <td style="text-align:right">
             <details class="actionMenu">
@@ -2301,7 +2300,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
                 <button type="button" data-useb="${r.id}" data-cid="${r.cliente_id}">Usar en B</button>
                 <button type="button" data-a4="${r.id}">Imprimir A4</button>
                 <button type="button" data-id80="${r.id}">Imprimir 80mm</button>
-                <button type="button" data-wa="${r.id}">Enviar WA</button>
+                <button type="button" data-wa="${r.id}">Abrir WA</button>
                 <button type="button" class="danger" data-close="${r.id}">Cerrar</button>
               </div>
             </details>
@@ -2423,35 +2422,16 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       }
     }
 
-    async function enviarMensajeOpenWA(telefono, mensaje){
-      const respuesta = await fetch(MENSAJERIA_VDC_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          telefono,
-          mensaje
-        })
-      });
+    function abrirWhatsAppManual(telefono, mensaje){
+      const url = `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`;
+      const nueva = window.open(url, '_blank', 'noopener,noreferrer');
 
-      let resultado = {};
-
-      try{
-        resultado = await respuesta.json();
-      }catch(_error){
-        resultado = {};
+      // Algunos navegadores pueden bloquear popups. En ese caso, navegar en la misma pestaña.
+      if(!nueva){
+        window.location.href = url;
       }
 
-      if(!respuesta.ok || !resultado.ok){
-        throw new Error(
-          resultado.detalle ||
-          resultado.error ||
-          `El servidor respondió con código ${respuesta.status}`
-        );
-      }
-
-      return resultado;
+      return true;
     }
 
     async function registrarNotaWhatsApp(nota){
@@ -2470,8 +2450,8 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         .eq('id', nota.id);
 
       if(error){
-        console.error('No se pudo registrar el envío de WhatsApp:', error);
-        alert('La nota sí se envió por WhatsApp, pero no pude guardar el estado en Supabase.');
+        console.error('No se pudo registrar la apertura de WhatsApp:', error);
+        alert('WhatsApp sí se abrió, pero no pude guardar el estado en Supabase.');
         return false;
       }
 
@@ -2499,17 +2479,17 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       const veces = Number(nota.whatsapp_envios || 1);
 
       return confirm(
-        `⚠️ ESTA NOTA YA FUE ENVIADA POR WHATSAPP\n\n` +
+        `⚠️ ESTA NOTA YA FUE ABIERTA EN WHATSAPP\n\n` +
         `Folio: ${nota.folio}\n` +
-        `Último envío: ${cuando}\n` +
-        `Envíos registrados: ${veces}\n\n` +
-        `¿Quieres ENVIARLA OTRA VEZ de todos modos?`
+        `Última apertura: ${cuando}\n` +
+        `Aperturas registradas: ${veces}\n\n` +
+        `¿Quieres ABRIRLA OTRA VEZ de todos modos?`
       );
     }
 
     async function waNota(nota_id){
       if(waBusy){
-        mostrarEstadoWA('Ya se está enviando una nota. Espera un momento…', 'cargando');
+        mostrarEstadoWA('Ya se está preparando una nota de WhatsApp…', 'cargando');
         return;
       }
 
@@ -2527,11 +2507,10 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         }
 
         if(!confirmarReenvioWhatsApp(nota)){
-          waBusy = false;
           return;
         }
 
-        mostrarEstadoWA('Enviando nota por WhatsApp…', 'cargando');
+        mostrarEstadoWA('Preparando WhatsApp…', 'cargando');
 
         const { data: det, error: detError } = await sb
           .from('notas_detalle')
@@ -2560,13 +2539,14 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
 
         const mensaje = plantillaWA(nota, det || [], nombre);
 
-        await enviarMensajeOpenWA(digits, mensaje);
+        // Solo abre WhatsApp. El envío lo confirma manualmente el usuario dentro de WhatsApp.
+        abrirWhatsAppManual(digits, mensaje);
         await registrarNotaWhatsApp(nota);
 
-        mostrarEstadoWA(`✅ Nota ${nota.folio} enviada a ${nombre}.`, 'ok');
+        mostrarEstadoWA(`✅ WhatsApp abierto para ${nombre}. Pulsa Enviar manualmente.`, 'ok');
       }catch(error){
-        console.error('Error al enviar la nota por OpenWA:', error);
-        mostrarEstadoWA(`❌ ${error.message || 'No se pudo enviar la nota.'}`, 'error');
+        console.error('Error al abrir WhatsApp:', error);
+        mostrarEstadoWA(`❌ ${error.message || 'No se pudo abrir WhatsApp.'}`, 'error');
       }finally{
         waBusy = false;
       }
