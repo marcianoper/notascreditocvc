@@ -332,30 +332,71 @@
 
         <div id="capVentaBodega" style="display:none">
           <div class="warnBox">
-            Cliente especial detectado: <b>Venta Bodega</b>.  
-            Aquí no capturas producto a mano: subes la foto del ticket QR o pegas el contenido y las partidas se agregan solas a la nota activa.
+            Cliente especial: <b>Venta Bodega</b>.<br/>
+            Cada comprador de mostrador se maneja como una <b>venta independiente</b>. Puedes capturar productos a mano o cargar un QR. 
+            Al terminar, usa <b>Imprimir y cerrar esta venta</b>; la siguiente captura abrirá automáticamente un ticket nuevo.
           </div>
 
           <div class="helperBadges">
+            <span class="pill">✍️ Captura manual</span>
             <span class="pill">🖼️ Foto QR</span>
-            <span class="pill">⌨️ Pegar contenido</span>
+            <span class="pill">⌨️ Pegar QR</span>
+            <span class="pill">🧾 Ticket individual</span>
           </div>
 
-          <div class="flex" style="margin-top:10px">
-            <button type="button" class="btn btn-ghost" id="vbProcesarManual">Procesar contenido</button>
-            <button type="button" class="btn btn-ghost" id="vbLimpiar">Limpiar</button>
+          <div class="okBox" id="vbVentaActual">
+            Venta actual: lista para capturar.
           </div>
 
-          <label class="btn btn-ghost" for="vbFile" style="display:block;text-align:center;margin-top:10px;cursor:pointer">
-            Subir foto del QR
-            <input id="vbFile" type="file" accept="image/*" style="display:none" />
-          </label>
+          <div style="margin-top:12px;padding:12px;border:1px solid #e5e7eb;border-radius:10px">
+            <div style="font-weight:900;margin-bottom:4px">Captura manual</div>
+            <div class="row-3">
+              <div>
+                <label>Producto</label>
+                <input id="vbProducto" list="catProductos" placeholder="Ej. Panza de Res" />
+              </div>
+              <div>
+                <label>Kilos</label>
+                <input id="vbKg" type="number" min="0" step="0.01" />
+              </div>
+              <div>
+                <label>Piezas (opcional)</label>
+                <input id="vbPzas" type="number" min="0" step="1" />
+              </div>
+            </div>
 
-          <label>Contenido del QR</label>
-          <textarea id="vbPayload" rows="5" placeholder="Aquí aparecerá el contenido del QR o puedes pegarlo manualmente."></textarea>
+            <div class="flex" style="margin-top:10px">
+              <button type="button" class="btn btn-primary" id="vbAgregarManual">Agregar producto</button>
+              <button type="button" class="btn btn-ghost" id="vbNuevaVenta">Nueva venta</button>
+            </div>
+          </div>
 
-          <div class="okBox" id="vbStatus">
-            Esperando ticket QR.
+          <div style="margin-top:12px;padding:12px;border:1px solid #e5e7eb;border-radius:10px">
+            <div style="font-weight:900;margin-bottom:4px">Código QR</div>
+
+            <div class="flex" style="margin-top:8px">
+              <button type="button" class="btn btn-ghost" id="vbProcesarManual">Procesar contenido QR</button>
+              <button type="button" class="btn btn-ghost" id="vbLimpiar">Limpiar QR</button>
+            </div>
+
+            <label class="btn btn-ghost" for="vbFile" style="display:block;text-align:center;margin-top:10px;cursor:pointer">
+              Subir foto del QR
+              <input id="vbFile" type="file" accept="image/*" style="display:none" />
+            </label>
+
+            <label>Contenido del QR</label>
+            <textarea id="vbPayload" rows="4" placeholder="Aquí aparecerá el contenido del QR o puedes pegarlo manualmente."></textarea>
+
+            <div class="okBox" id="vbStatus">
+              Esperando ticket QR.
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-muted" id="vbFinalizarImprimir" style="margin-top:12px">
+            🖨️ Imprimir 80 mm y cerrar esta venta
+          </button>
+          <div class="muted" style="margin-top:6px">
+            Al cerrarla, sus productos ya no se mezclarán con el siguiente comprador de Venta Bodega.
           </div>
         </div>
 
@@ -1108,6 +1149,13 @@ async function imprimirSilenciosoTexto(texto){
     const vbPayload = $('#vbPayload');
     const vbStatus = $('#vbStatus');
     const vbFile = $('#vbFile');
+    const vbProducto = $('#vbProducto');
+    const vbKg = $('#vbKg');
+    const vbPzas = $('#vbPzas');
+    const vbAgregarManual = $('#vbAgregarManual');
+    const vbNuevaVenta = $('#vbNuevaVenta');
+    const vbFinalizarImprimir = $('#vbFinalizarImprimir');
+    const vbVentaActual = $('#vbVentaActual');
 
     const capPG = $('#capPG');
     const seboKg = $('#seboKg');
@@ -1194,6 +1242,14 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       await processVentaBodegaText(vbPayload.value || '');
     });
 
+    vbAgregarManual?.addEventListener('click', addVentaBodegaManual);
+    vbNuevaVenta?.addEventListener('click', nuevaVentaBodegaManual);
+    vbFinalizarImprimir?.addEventListener('click', finalizarVentaBodega);
+
+    vbProducto?.addEventListener('change', ()=>{
+      vbProducto.value = productoBonito(vbProducto.value || '');
+    });
+
     vbLimpiar?.addEventListener('click', ()=>{
       vbPayload.value = '';
       setVBStatus('Esperando ticket QR.', true);
@@ -1268,6 +1324,12 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         if(id === 'vbPayload'){
           e.preventDefault();
           processVentaBodegaText(vbPayload.value || '');
+          return;
+        }
+        if(['vbProducto','vbKg','vbPzas'].includes(id)){
+          e.preventDefault();
+          addVentaBodegaManual();
+          return;
         }
         return;
       }
@@ -1375,7 +1437,13 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       if(pg){
         setTimeout(()=>{ seboKg?.focus(); seboKg?.select(); }, 0);
       }else if(vb){
-        setTimeout(()=>{ vbPayload?.focus(); }, 0);
+        const n = activeNota();
+        if(vbVentaActual){
+          vbVentaActual.textContent = n
+            ? `Venta actual: ${n.folio}`
+            : 'Venta actual: se creará un ticket nuevo al capturar el primer producto.';
+        }
+        setTimeout(()=>{ vbProducto?.focus(); }, 0);
       }else{
         setTimeout(()=>{ pProducto?.focus(); }, 0);
       }
@@ -1477,7 +1545,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       }
     }
 
-    async function abrirVentaBodegaDirecto(){
+    async function getOrCreateVentaBodegaClient(){
       let cliente = CLIENTES.find(c => normalizeName(c.nombre) === normalizeName(VENTA_BODEGA_NOMBRE));
 
       if(!cliente){
@@ -1490,35 +1558,109 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         const { error } = await sb.from('clientes').insert(row);
         if(error){
           console.error(error);
-          return alert('No se pudo crear el cliente Venta Bodega');
+          alert('No se pudo crear el cliente Venta Bodega');
+          return null;
         }
 
         await loadClientes();
         cliente = CLIENTES.find(c => normalizeName(c.nombre) === normalizeName(VENTA_BODEGA_NOMBRE));
       }
 
-      if(!cliente){
-        return alert('No encontré el cliente Venta Bodega');
-      }
+      return cliente || null;
+    }
+
+    async function crearNuevaNotaVentaBodega(){
+      const cliente = await getOrCreateVentaBodegaClient();
+      if(!cliente) return null;
 
       slotState[slotActive].cliente_id = cliente.id;
       slotState[slotActive].telefono = cliente.telefono || null;
+      cliSelect.value = cliente.id;
+      cliTelefono.value = cliente.telefono || '';
 
+      const fecha = notaFecha.value || todayISO();
+      const payload = {
+        id: crypto.randomUUID(),
+        folio: genFolio(),
+        fecha,
+        vence: (notaVence.value || addDays(fecha, notaDias.value)),
+        cliente_id: cliente.id,
+        total: 0,
+        saldo: 0,
+        observaciones: null
+      };
+
+      const { error } = await sb.from('notas_credito').insert(payload);
+      if(error){
+        console.error(error);
+        alert('No se pudo crear la venta de bodega');
+        return null;
+      }
+
+      setSlotNota(slotActive, payload);
+      notaFolio.value = payload.folio;
+      notaObs.value = '';
+      if(vbVentaActual) vbVentaActual.textContent = `Venta actual: ${payload.folio}`;
+      await loadBandeja();
+      return payload;
+    }
+
+    async function ensureVentaBodegaNota(){
+      const cliente = await getOrCreateVentaBodegaClient();
+      if(!cliente) return null;
+
+      const actual = activeNota();
+      if(
+        actual &&
+        String(actual.cliente_id) === String(cliente.id) &&
+        (actual.estado || 'abierta') === 'abierta' &&
+        String(actual.fecha || '') === String(notaFecha.value || todayISO())
+      ){
+        return actual;
+      }
+
+      return await crearNuevaNotaVentaBodega();
+    }
+
+    async function abrirVentaBodegaDirecto(){
+      const cliente = await getOrCreateVentaBodegaClient();
+      if(!cliente) return;
+
+      slotState[slotActive].cliente_id = cliente.id;
+      slotState[slotActive].telefono = cliente.telefono || null;
       cliSelect.value = cliente.id;
       cliTelefono.value = cliente.telefono || '';
 
       updateCaptureMode();
-      await continuarNota();
+
+      const actual = activeNota();
+      const actualEsVB = actual && String(actual.cliente_id) === String(cliente.id) && (actual.estado || 'abierta') === 'abierta';
+      if(!actualEsVB){
+        await crearNuevaNotaVentaBodega();
+      }
 
       setTimeout(()=>{
+        vbProducto.value = '';
+        vbKg.value = '';
+        vbPzas.value = '';
         vbPayload.value = '';
-        vbPayload?.focus();
+        vbProducto?.focus();
       }, 100);
     }
 
     async function continuarNota(){
       const cliente_id = slotState[slotActive].cliente_id || cliSelect.value;
       if(!cliente_id) return alert('Selecciona cliente');
+
+      if(isVentaBodegaSelected()){
+        const notaVB = await ensureVentaBodegaNota();
+        if(notaVB){
+          notaFolio.value = notaVB.folio;
+          notaObs.value = notaVB.observaciones || '';
+          updateCaptureMode();
+        }
+        return;
+      }
 
       const fecha = notaFecha.value || todayISO();
 
@@ -1667,9 +1809,147 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       await recalcNota(nota.id);
     }
 
-    async function processVentaBodegaText(text){
+    async function addVentaBodegaManual(){
+      if(!isVentaBodegaSelected()) return alert('Selecciona Venta Bodega.');
+
+      const nota = await ensureVentaBodegaNota();
+      if(!nota) return;
+
+      const producto = resolverProductoCatalogo(vbProducto?.value || '', canonSku(vbProducto?.value || ''));
+      const cantidad = Number(vbKg?.value || 0);
+      const piezasRaw = (vbPzas?.value ?? '').toString().trim();
+      const piezas = piezasRaw !== '' ? Number(piezasRaw) : null;
+
+      if(!producto || cantidad <= 0){
+        return alert('Producto y kilos son obligatorios.');
+      }
+
+      const precio = Number(PRECIOS[producto] || 0);
+      const { error } = await sb.from('notas_detalle').insert({
+        id: crypto.randomUUID(),
+        nota_id: nota.id,
+        producto,
+        cantidad,
+        piezas: (piezas != null && piezas > 0 ? Math.round(piezas) : null),
+        precio,
+        importe: cantidad * precio
+      });
+
+      if(error){
+        console.error(error);
+        return alert('No se pudo agregar el producto a Venta Bodega.');
+      }
+
+      vbProducto.value = '';
+      vbKg.value = '';
+      vbPzas.value = '';
+      clearDirty();
+      await recalcNota(nota.id);
+      if(vbVentaActual) vbVentaActual.textContent = `Venta actual: ${nota.folio}`;
+      vbProducto?.focus();
+    }
+
+    async function nuevaVentaBodegaManual(){
+      if(!isVentaBodegaSelected()) return alert('Selecciona Venta Bodega.');
+
+      const actual = activeNota();
+      if(actual){
+        const { data: det } = await sb
+          .from('notas_detalle')
+          .select('id')
+          .eq('nota_id', actual.id)
+          .limit(1);
+
+        if((det || []).length){
+          const ok = confirm(
+            'La venta actual ya tiene productos.\n\n' +
+            'Para no mezclar clientes, primero conviene imprimir y cerrar esta venta.\n\n' +
+            '¿Quieres dejarla abierta y comenzar otra de todos modos?'
+          );
+          if(!ok) return;
+        }
+
+        await sb.from('notas_credito').update({ estado:'cerrada' }).eq('id', actual.id);
+      }
+
+      if(slotActive === 'A'){
+        notaA = null;
+        if(chA){ sb.removeChannel(chA); chA = null; }
+      }else{
+        notaB = null;
+        if(chB){ sb.removeChannel(chB); chB = null; }
+      }
+
+      await crearNuevaNotaVentaBodega();
+      vbProducto.value = '';
+      vbKg.value = '';
+      vbPzas.value = '';
+      vbPayload.value = '';
+      setVBStatus('Nueva venta lista.', true);
+      await renderVista();
+      updateCaptureMode();
+    }
+
+    async function finalizarVentaBodega(){
+      if(!isVentaBodegaSelected()) return alert('Selecciona Venta Bodega.');
+
       const nota = activeNota();
-      if(!nota) return alert('Primero crea o continúa una nota en el slot activo.');
+      if(!nota) return alert('No hay una venta activa para imprimir.');
+
+      const { data: det, error: detError } = await sb
+        .from('notas_detalle')
+        .select('id')
+        .eq('nota_id', nota.id)
+        .limit(1);
+
+      if(detError){
+        console.error(detError);
+        return alert('No pude revisar los productos de esta venta.');
+      }
+      if(!(det || []).length){
+        return alert('Esta venta todavía no tiene productos.');
+      }
+
+      const impreso = await imprimirNota80mm(nota.id);
+      if(impreso === false) return;
+
+      const { error } = await sb
+        .from('notas_credito')
+        .update({ estado:'cerrada' })
+        .eq('id', nota.id);
+
+      if(error){
+        console.error(error);
+        return alert('El ticket se imprimió, pero no pude cerrar la venta.');
+      }
+
+      if(slotActive === 'A'){
+        notaA = null;
+        if(chA){ sb.removeChannel(chA); chA = null; }
+      }else{
+        notaB = null;
+        if(chB){ sb.removeChannel(chB); chB = null; }
+      }
+
+      notaFolio.value = genFolio();
+      notaObs.value = '';
+      vbProducto.value = '';
+      vbKg.value = '';
+      vbPzas.value = '';
+      vbPayload.value = '';
+      setVBStatus('Venta impresa y cerrada. La próxima captura abrirá un ticket nuevo.', true);
+      if(vbVentaActual) vbVentaActual.textContent = 'Venta actual: lista para iniciar la siguiente venta.';
+
+      await renderVista();
+      await loadBandeja();
+      updateCaptureMode();
+      vbProducto?.focus();
+    }
+
+    async function processVentaBodegaText(text){
+      if(!isVentaBodegaSelected()) return alert('Selecciona Venta Bodega.');
+      const nota = await ensureVentaBodegaNota();
+      if(!nota) return;
 
       const rawText = String(text || '').trim();
       if(!rawText) return alert('Pega o escanea primero el contenido del QR.');
@@ -2406,10 +2686,11 @@ async function imprimirNota80mm(nota_id){
 
   if(notaError || !nota){
     console.error(notaError);
-    return alert('No se pudo cargar la nota para imprimir.');
+    alert('No se pudo cargar la nota para imprimir.');
+    return false;
   }
 
-  if(!confirmarReimpresion(nota)) return;
+  if(!confirmarReimpresion(nota)) return false;
 
   const { data: det } = await sb
     .from('notas_detalle')
@@ -2418,6 +2699,8 @@ async function imprimirNota80mm(nota_id){
     .order('created_at');
 
   const cliente = productoBonito(nota.clientes?.nombre || '(sin nombre)');
+  const esVentaBodega = normalizeName(nota.clientes?.nombre || '') === normalizeName(VENTA_BODEGA_NOMBRE);
+  const tipoTicket = esVentaBodega ? 'VENTA BODEGA' : 'NOTA A CRÉDITO';
   const obs = nota.observaciones || '—';
 
   const filas = (det || []).map(d=>{
@@ -2550,7 +2833,7 @@ async function imprimirNota80mm(nota_id){
     <h3>${STORE_NAME}</h3>
 
     <div class="meta">
-      NOTA A CRÉDITO<br/>
+      ${tipoTicket}<br/>
       Cliente: ${cliente}<br/>
       Folio: ${nota.folio}<br/>
       Fecha: ${nota.fecha}<br/>
@@ -2593,7 +2876,7 @@ if(USAR_IMPRESION_SILENCIOSA){
     }
 
     await registrarNotaImpresa(nota);
-    return;
+    return true;
 
   }catch(err){
     console.error(err);
@@ -2611,6 +2894,7 @@ if(USAR_IMPRESION_SILENCIOSA){
     win.print();
     await registrarNotaImpresa(nota);
   }, 300);
+  return true;
 }
     async function imprimirDiaA4(){
       const f = diaFecha.value || todayISO();
