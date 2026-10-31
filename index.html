@@ -172,6 +172,34 @@
     }
     .printStatus.pending{ background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
     .printStatus.done{ background:#eef7f0; color:#0a7a3b; border:1px solid #cde7d4; }
+
+    /* Revisión antes de imprimir */
+    #revBg{
+      position:fixed; inset:0; z-index:20000;
+      background:rgba(2,6,23,.55);
+      display:none; align-items:center; justify-content:center; padding:16px;
+    }
+    #revBox{
+      width:100%; max-width:560px; max-height:90vh; overflow:auto;
+      background:#fff; border-radius:16px; padding:18px;
+      box-shadow:0 24px 70px rgba(2,6,23,.35);
+    }
+    #revBox h3{ margin:0 0 4px; font-size:20px; }
+    #revBox .revSub{ color:#6b7280; font-size:13px; margin-bottom:12px; font-weight:700; }
+    .revItem{
+      display:flex; gap:10px; align-items:flex-start;
+      padding:12px; border-radius:12px; margin-bottom:10px;
+      border:2px solid; font-size:15px; line-height:1.35; font-weight:700;
+    }
+    .revItem .ico{ font-size:22px; line-height:1; }
+    .revItem .tag{ display:block; font-size:11px; font-weight:900; letter-spacing:.4px; text-transform:uppercase; margin-bottom:3px; }
+    .revItem.confusion{ background:#fef2f2; border-color:#fca5a5; color:#7f1d1d; }
+    .revItem.piezas{ background:#fff7ed; border-color:#fdba74; color:#7c2d12; }
+    .revItem.patron{ background:#fefce8; border-color:#fde047; color:#713f12; }
+    .revBtns{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+    .revBtns button{ flex:1; min-width:200px; padding:14px; font-size:16px; font-weight:900; border-radius:12px; cursor:pointer; margin:0; }
+    #revCorregir{ background:#0a7a3b; color:#fff; border:none; }
+    #revImprimir{ background:#fff; color:#b91c1c; border:2px solid #fca5a5; }
   </style>
 </head>
 
@@ -542,6 +570,18 @@
   </main>
 
   <div id="printArea" style="display:none"></div>
+
+  <div id="revBg" role="dialog" aria-modal="true" aria-labelledby="revTitulo">
+    <div id="revBox">
+      <h3 id="revTitulo">⚠️ Revisa antes de imprimir</h3>
+      <div class="revSub" id="revSub"></div>
+      <div id="revLista"></div>
+      <div class="revBtns">
+        <button type="button" id="revCorregir">✏️ Corregir (no imprimir)</button>
+        <button type="button" id="revImprimir">Sí, está correcto — imprimir</button>
+      </div>
+    </div>
+  </div>
   <datalist id="catProductos"></datalist>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2622,6 +2662,87 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       window.print();
       setTimeout(()=>{ el.style.display='none'; el.innerHTML=''; }, 500);
     }
+// 🔎 REVISIÓN ANTES DE IMPRIMIR
+// Pregunta a Supabase (función revisar_nota_impresion) si algo de la nota se ve raro:
+//  - kilos por pieza fuera de lo normal para el producto
+//  - producto que el cliente nunca lleva, sobre todo si casi siempre lleva uno parecido
+// Si no hay nada raro, imprime directo. Si falla la consulta, NO bloquea la impresión.
+const REV_TIPOS = {
+  confusion: { ico:'🔁', tag:'¿Producto equivocado?' },
+  piezas:    { ico:'⚖️', tag:'Piezas y kilos no cuadran' },
+  patron:    { ico:'❓', tag:'Producto poco común para este cliente' }
+};
+
+function escRev(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function mostrarRevision(nota, alertas){
+  return new Promise(resolve=>{
+    const bg = document.getElementById('revBg');
+    const btnC = document.getElementById('revCorregir');
+    const btnI = document.getElementById('revImprimir');
+
+    document.getElementById('revSub').textContent =
+      `${productoBonito(nota.clientes?.nombre || '')} · Folio ${nota.folio}`;
+
+    document.getElementById('revLista').innerHTML = alertas.map(a=>{
+      const t = REV_TIPOS[a.tipo] || REV_TIPOS.patron;
+      return `<div class="revItem ${escRev(a.tipo)}">
+        <span class="ico">${t.ico}</span>
+        <div><span class="tag">${t.tag}</span>${escRev(a.mensaje)}</div>
+      </div>`;
+    }).join('');
+
+    const cerrar = (imprimir)=>{
+      bg.style.display = 'none';
+      btnC.onclick = null;
+      btnI.onclick = null;
+      document.removeEventListener('keydown', onKey, true);
+      resolve(imprimir);
+    };
+    const onKey = (e)=>{
+      if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); cerrar(false); }
+    };
+
+    btnC.onclick = ()=> cerrar(false);
+    btnI.onclick = ()=> cerrar(true);
+    document.addEventListener('keydown', onKey, true);
+
+    bg.style.display = 'flex';
+    setTimeout(()=> btnC.focus(), 0); // Enter por accidente = corregir, no imprimir
+  });
+}
+
+async function revisarAntesDeImprimir(nota){
+  let alertas = [];
+  try{
+    const { data, error } = await sb.rpc('revisar_nota_impresion', { p_nota_id: nota.id });
+    if(error) throw error;
+    alertas = data || [];
+  }catch(err){
+    console.warn('No se pudo revisar la nota antes de imprimir; se imprime sin revisión.', err);
+    return true;
+  }
+
+  if(!alertas.length) return true;
+
+  const imprimir = await mostrarRevision(nota, alertas);
+
+  // Registro de qué se avisó y qué decidieron (no detiene nada si falla)
+  sb.from('alertas_ticket').insert(alertas.map(a=>({
+    nota_id: nota.id,
+    folio: nota.folio,
+    cliente: nota.clientes?.nombre || null,
+    tipo: a.tipo,
+    producto: a.producto,
+    mensaje: a.mensaje,
+    decision: imprimir ? 'imprimio' : 'corrigio'
+  }))).then(({ error })=>{ if(error) console.warn('No se guardó el registro de alertas:', error); });
+
+  return imprimir;
+}
+
 async function registrarNotaImpresa(nota){
   if(!nota?.id) return false;
 
@@ -2691,6 +2812,8 @@ async function imprimirNota80mm(nota_id){
   }
 
   if(!confirmarReimpresion(nota)) return false;
+
+  if(!(await revisarAntesDeImprimir(nota))) return false;
 
   const { data: det } = await sb
     .from('notas_detalle')
