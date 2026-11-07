@@ -1553,12 +1553,19 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       if(PRECIOS[n]) pPrecio.value = PRECIOS[n];
     }
 
+    // Regla de cajas: con solo poner las piezas se calculan los kilos.
+    //   CAJA AZUL COMPLETA      -> 27.22 kg por caja
+    //   CAJA CANADIAN COMPLETA  -> 27.28 kg por caja
+    // (se dejan también los nombres viejos por si se reactivan)
+    function pesoCajaFija(prodName){
+      const n = normalizeKey(prodName);
+      if(n === 'caja canadian completa' || n === 'caja menudo canadian') return CAJA_KG_CANADIAN;
+      if(n === 'caja azul completa' || n === 'caja menudo national') return CAJA_KG;
+      return null;
+    }
+
     function isCajaMenudoTarget(prodName){
-      const n = normalizeName(prodName);
-      return (
-        n === normalizeName('Caja Menudo National') ||
-        n === normalizeName('Caja Menudo Canadian')
-      );
+      return pesoCajaFija(prodName) != null;
     }
 
     function autoKgFromCaja(){
@@ -1570,8 +1577,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       const pz = Number(pPzas.value || 0);
       if(!pz || pz <= 0) return;
 
-      const esCanadian = normalizeName(prod) === normalizeName('Caja Menudo Canadian');
-      const pesoCaja = esCanadian ? CAJA_KG_CANADIAN : CAJA_KG;
+      const pesoCaja = pesoCajaFija(prod);
 
       const kg = pz * pesoCaja;
       pKg.value = to2(kg);
