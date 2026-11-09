@@ -62,6 +62,20 @@
       margin-top:10px;
       font-size:13px;
     }
+    .errBox{
+      background:#fef2f2;
+      border:1px solid #fca5a5;
+      color:#7f1d1d;
+      border-radius:10px;
+      padding:10px;
+      margin-top:10px;
+      font-size:13px;
+    }
+
+    /* Cobros por escaneo */
+    #scanFolio{ font-size:18px; font-weight:800; letter-spacing:.5px; }
+    #scanFolio:focus{ outline:3px solid #0a7a3b; border-color:#0a7a3b; }
+    #scanResult{ font-size:16px; line-height:1.4; font-weight:700; }
 
     @media print{
       body *{visibility:hidden}
@@ -172,6 +186,7 @@
     }
     .printStatus.pending{ background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
     .printStatus.done{ background:#eef7f0; color:#0a7a3b; border:1px solid #cde7d4; }
+    .printStatus.unpaid{ background:#fef2f2; color:#b91c1c; border:1px solid #fca5a5; }
 
     /* Revisión antes de imprimir */
     #revBg{
@@ -538,10 +553,52 @@
               <th>Estado</th>
               <th>Impresión</th>
               <th>WhatsApp</th>
+              <th>Pago</th>
               <th style="text-align:right">Acciones</th>
             </tr>
           </thead>
           <tbody id="bandejaBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>💵 Cobros — escanear ticket pagado</h2>
+      <div class="muted">Haz clic en el cuadro y escanea el código de barras del ticket. La nota queda marcada como <b>PAGADA</b>.</div>
+
+      <div class="bandejaTools" style="margin-top:8px">
+        <div style="flex:2; min-width:280px">
+          <label>Código de barras / folio</label>
+          <input id="scanFolio" autocomplete="off" placeholder="Escanea aquí (o escribe el folio y Enter)" />
+        </div>
+        <div style="min-width:170px">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" id="btnScanPagar" type="button">Marcar pagado</button>
+        </div>
+        <div style="min-width:170px">
+          <label>&nbsp;</label>
+          <button class="btn btn-ghost" id="btnScanCam" type="button">📷 Usar cámara</button>
+        </div>
+      </div>
+
+      <div id="scanCam" style="display:none; max-width:440px; margin-top:10px"></div>
+
+      <div id="scanResult" class="okBox">Listo para escanear.</div>
+
+      <h3 style="font-size:15px;margin:16px 0 0">Cobros registrados hoy</h3>
+      <div class="bandejaWrap" style="max-height:35vh">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Folio</th>
+              <th>Cliente</th>
+              <th>Fecha nota</th>
+              <th style="text-align:right">Total</th>
+              <th style="text-align:right"></th>
+            </tr>
+          </thead>
+          <tbody id="cobrosBody"></tbody>
         </table>
       </div>
     </section>
@@ -1238,6 +1295,15 @@ async function imprimirSilenciosoTexto(texto){
 
     const notaObs = $('#notaObs');
 
+    // Cobros por escaneo
+    const scanFolio = $('#scanFolio');
+    const scanResult = $('#scanResult');
+    const cobrosBody = $('#cobrosBody');
+    const btnScanCam = $('#btnScanCam');
+    let scanBusy = false;
+    let scanCam = null;
+    let ultimoEscaneo = { txt:'', t:0 };
+
     let vbBusy = false;
     let waBusy = false;
 
@@ -1296,6 +1362,17 @@ $('#btnAbrirVentaBodega')?.addEventListener('click', abrirVentaBodegaDirecto);
 $('#btnBandeja')?.addEventListener('click', loadBandeja);
 $('#btnDiaA4')?.addEventListener('click', imprimirDiaA4);
 $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
+
+// Cobros por escaneo
+$('#btnScanPagar')?.addEventListener('click', ()=> procesarEscaneoTicket(scanFolio.value));
+btnScanCam?.addEventListener('click', toggleCamaraCobro);
+scanFolio?.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    e.stopPropagation();
+    procesarEscaneoTicket(scanFolio.value);
+  }
+});
 
     vbProcesarManual?.addEventListener('click', async ()=>{
       await processVentaBodegaText(vbPayload.value || '');
@@ -1408,6 +1485,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       await Promise.all([loadClientes(), loadProductos()]);
       notaFolio.value = genFolio();
       await loadBandeja();
+      await loadCobrosHoy();
 
       if(CLIENTES[0]){
         slotState.A.cliente_id = CLIENTES[0].id;
@@ -1492,6 +1570,9 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       capPG.style.display = pg ? 'block' : 'none';
       capVentaBodega.style.display = vb ? 'block' : 'none';
       capNormal.style.display = (!pg && !vb) ? 'block' : 'none';
+
+      // Si el cajero está escaneando cobros, no le robamos el cursor
+      if(document.activeElement === scanFolio) return;
 
       if(pg){
         setTimeout(()=>{ seboKg?.focus(); seboKg?.select(); }, 0);
@@ -2162,7 +2243,7 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
       applySlotUI(slotActive);
 
       vFolio.textContent = nota.folio;
-      vEstado.textContent = nota.estado || 'abierta';
+      vEstado.textContent = (nota.estado || 'abierta') + (nota.pagado ? ' · 💵 PAGADA' : '');
       vSaldo.textContent = to2(nota.saldo || 0);
 
       const autoObs = buildAutoObsFromDetalle(det || []);
@@ -2322,14 +2403,14 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
 
       const { data, error } = await sb
         .from('notas_credito')
-        .select('id,folio,estado,impreso,impreso_at,impresiones,whatsapp_enviado,whatsapp_enviado_at,whatsapp_envios,clientes(nombre),cliente_id,created_at')
+        .select('id,folio,estado,impreso,impreso_at,impresiones,whatsapp_enviado,whatsapp_enviado_at,whatsapp_envios,pagado,pagado_at,clientes(nombre),cliente_id,created_at')
         .eq('fecha', f)
         .eq('estado','abierta')
         .order('created_at', { ascending:false });
 
       if(error){
         console.error(error);
-        bandejaBody.innerHTML = `<tr><td colspan="6" class="muted">Error cargando bandeja</td></tr>`;
+        bandejaBody.innerHTML = `<tr><td colspan="7" class="muted">Error cargando bandeja (¿ya corriste el SQL de las columnas de pago?)</td></tr>`;
         return;
       }
 
@@ -2357,6 +2438,11 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
             ${r.whatsapp_enviado
               ? `<span class="printStatus done" title="${r.whatsapp_enviado_at ? new Date(r.whatsapp_enviado_at).toLocaleString() : 'Envío registrado'}">✅ Enviado${Number(r.whatsapp_envios||0) > 1 ? ` · ${r.whatsapp_envios} veces` : ''}</span>`
               : `<span class="printStatus pending">⚠️ No enviado</span>`}
+          </td>
+          <td>
+            ${r.pagado
+              ? `<span class="printStatus done" title="${r.pagado_at ? new Date(r.pagado_at).toLocaleString() : 'Pago registrado'}">💵 Pagado</span>`
+              : `<span class="printStatus unpaid">❌ Pendiente</span>`}
           </td>
           <td style="text-align:right">
             <details class="actionMenu">
@@ -2399,6 +2485,222 @@ $('#btnDiaCSV')?.addEventListener('click', exportDiaCSV);
         cerrarNotaById(b.dataset.close);
       });
     }
+
+    // ===================== 💵 COBROS POR ESCANEO =====================
+    // El ticket trae el folio en código de barras (CODE128). Al escanearlo:
+    //  - se busca la nota por folio
+    //  - se marca pagado = true y pagado_at = ahora
+    //  - si ya estaba pagada, solo avisa (no la vuelve a marcar)
+
+    function beepCobro(ok){
+      try{
+        const ctx = beepCobro.ctx || (beepCobro.ctx = new (window.AudioContext || window.webkitAudioContext)());
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.frequency.value = ok ? 1200 : 280;
+        g.gain.value = 0.15;
+        o.connect(g); g.connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + (ok ? 0.12 : 0.45));
+      }catch(_e){}
+    }
+
+    function setScanResult(html, tipo){
+      if(!scanResult) return;
+      scanResult.className = tipo === 'ok' ? 'okBox' : (tipo === 'warn' ? 'warnBox' : 'errBox');
+      scanResult.innerHTML = html;
+    }
+
+    // Los lectores con teclado en español a veces cambian el guion "-" por otro símbolo.
+    // Si vienen los 14 números del folio, se reconstruye: CVC-AAAAMMDD-HHMMSS
+    function normalizarFolioEscaneado(texto){
+      const raw = String(texto || '').trim().toUpperCase();
+      if(!raw) return '';
+      const dig = raw.replace(/\D/g, '');
+      if(dig.length === 14) return `CVC-${dig.slice(0,8)}-${dig.slice(8)}`;
+      return raw;
+    }
+
+    async function procesarEscaneoTicket(texto){
+      const folio = normalizarFolioEscaneado(texto);
+      if(!folio){
+        scanFolio?.focus();
+        return;
+      }
+      if(scanBusy) return;
+      scanBusy = true;
+
+      try{
+        const { data, error } = await sb
+          .from('notas_credito')
+          .select('id,folio,fecha,total,pagado,pagado_at,clientes(nombre)')
+          .eq('folio', folio);
+
+        if(error) throw error;
+
+        const notas = data || [];
+        if(!notas.length){
+          beepCobro(false);
+          setScanResult(`❌ No encontré ninguna nota con el folio <b>${escRev(folio)}</b>.<br>Revisa que el ticket sea de este sistema.`, 'err');
+          return;
+        }
+
+        const n0 = notas[0];
+        const cliente = productoBonito(n0.clientes?.nombre || '—');
+        const pendientes = notas.filter(n => !n.pagado);
+
+        if(!pendientes.length){
+          beepCobro(false);
+          const cuando = n0.pagado_at ? new Date(n0.pagado_at).toLocaleString() : 'fecha no registrada';
+          setScanResult(
+            `⚠️ Este ticket <b>YA ESTABA PAGADO</b>.<br>` +
+            `Cliente: <b>${escRev(cliente)}</b> · Folio ${escRev(n0.folio)} · Nota del ${escRev(n0.fecha)}<br>` +
+            `Se marcó como pagado: ${escRev(cuando)}`,
+            'warn'
+          );
+          return;
+        }
+
+        const ahora = new Date().toISOString();
+        const { error: updErr } = await sb
+          .from('notas_credito')
+          .update({ pagado: true, pagado_at: ahora })
+          .in('id', pendientes.map(n => n.id));
+
+        if(updErr) throw updErr;
+
+        const total = pendientes.reduce((a, n) => a + Number(n.total || 0), 0);
+        const avisoFecha = n0.fecha !== todayISO()
+          ? `<br>⚠️ Ojo: es una nota del <b>${escRev(n0.fecha)}</b>, no de hoy.`
+          : '';
+
+        beepCobro(true);
+        setScanResult(
+          `✅ <b>PAGADO</b> — ${escRev(cliente)}<br>` +
+          `Folio ${escRev(n0.folio)} · Nota del ${escRev(n0.fecha)} · Total $${to2(total)}${avisoFecha}`,
+          'ok'
+        );
+
+        await loadCobrosHoy();
+        await loadBandeja();
+      }catch(err){
+        console.error(err);
+        beepCobro(false);
+        setScanResult(
+          `❌ No se pudo registrar el pago: ${escRev(err?.message || err)}<br>` +
+          `¿Ya corriste el SQL que agrega las columnas <b>pagado</b> y <b>pagado_at</b>?`,
+          'err'
+        );
+      }finally{
+        scanBusy = false;
+        if(scanFolio){
+          scanFolio.value = '';
+          if(!scanCam) scanFolio.focus();
+        }
+      }
+    }
+
+    async function loadCobrosHoy(){
+      if(!cobrosBody) return;
+
+      const inicio = new Date();
+      inicio.setHours(0,0,0,0);
+
+      const { data, error } = await sb
+        .from('notas_credito')
+        .select('id,folio,fecha,total,pagado_at,clientes(nombre)')
+        .eq('pagado', true)
+        .gte('pagado_at', inicio.toISOString())
+        .order('pagado_at', { ascending:false });
+
+      if(error){
+        console.error(error);
+        cobrosBody.innerHTML = `<tr><td colspan="6" class="muted">Falta correr el SQL de las columnas de pago.</td></tr>`;
+        return;
+      }
+
+      const rows = data || [];
+      if(!rows.length){
+        cobrosBody.innerHTML = `<tr><td colspan="6" class="muted">Todavía no se ha escaneado ningún ticket hoy.</td></tr>`;
+        return;
+      }
+
+      cobrosBody.innerHTML = rows.map(r=>`
+        <tr>
+          <td>${new Date(r.pagado_at).toLocaleTimeString()}</td>
+          <td>${escRev(r.folio)}</td>
+          <td><b>${escRev(productoBonito(r.clientes?.nombre || ''))}</b></td>
+          <td>${escRev(r.fecha)}${r.fecha !== todayISO() ? ' ⚠️' : ''}</td>
+          <td style="text-align:right">$${to2(r.total)}</td>
+          <td style="text-align:right">
+            <button type="button" class="btn btn-ghost btn-sm" style="width:auto" data-deshacer="${r.id}" data-folio="${escRev(r.folio)}">Deshacer</button>
+          </td>
+        </tr>
+      `).join('');
+
+      cobrosBody.querySelectorAll('[data-deshacer]').forEach(b=>{
+        b.onclick = ()=> deshacerPago(b.dataset.deshacer, b.dataset.folio);
+      });
+    }
+
+    async function deshacerPago(id, folio){
+      if(!confirm(`¿Quitar el PAGADO del folio ${folio}?\n\nVolverá a quedar como PENDIENTE.`)) return;
+
+      const { error } = await sb
+        .from('notas_credito')
+        .update({ pagado: false, pagado_at: null })
+        .eq('id', id);
+
+      if(error){
+        console.error(error);
+        alert('No se pudo quitar el pago.');
+        return;
+      }
+
+      setScanResult(`↩️ Folio ${escRev(folio)} regresó a <b>PENDIENTE</b>.`, 'warn');
+      await loadCobrosHoy();
+      await loadBandeja();
+      scanFolio?.focus();
+    }
+
+    async function toggleCamaraCobro(){
+      const cont = document.getElementById('scanCam');
+
+      if(scanCam){
+        try{ await scanCam.stop(); await scanCam.clear(); }catch(_e){}
+        scanCam = null;
+        cont.style.display = 'none';
+        btnScanCam.textContent = '📷 Usar cámara';
+        scanFolio?.focus();
+        return;
+      }
+
+      cont.style.display = 'block';
+      try{
+        const F = window.Html5QrcodeSupportedFormats;
+        scanCam = F
+          ? new Html5Qrcode('scanCam', { formatsToSupport: [F.CODE_128, F.QR_CODE], verbose:false })
+          : new Html5Qrcode('scanCam');
+
+        await scanCam.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 320, height: 140 } },
+          (txt)=>{
+            const ahora = Date.now();
+            if(txt === ultimoEscaneo.txt && ahora - ultimoEscaneo.t < 4000) return; // evita doble lectura
+            ultimoEscaneo = { txt, t: ahora };
+            procesarEscaneoTicket(txt);
+          }
+        );
+        btnScanCam.textContent = '⏹️ Detener cámara';
+      }catch(err){
+        console.error(err);
+        scanCam = null;
+        cont.style.display = 'none';
+        alert('No pude abrir la cámara. Revisa que el navegador tenga permiso de cámara.');
+      }
+    }
+    // ===================== FIN COBROS =====================
 
     async function cargarEnSlot(slot, nota_id, cliente_id){
       const { data: nota } = await sb
@@ -3072,11 +3374,17 @@ if(USAR_IMPRESION_SILENCIOSA){
     async function imprimirDiaA4(){
       const f = diaFecha.value || todayISO();
 
-      const { data: notas } = await sb
+      const { data: notas, error: notasError } = await sb
         .from('notas_credito')
-        .select('id, folio, fecha, clientes(nombre)')
+        .select('id, folio, fecha, total, pagado, pagado_at, clientes(nombre)')
         .eq('fecha', f)
         .order('created_at');
+
+      if(notasError){
+        console.error(notasError);
+        alert('No se pudo cargar el reporte. ¿Ya corriste el SQL de las columnas de pago?');
+        return;
+      }
 
       const ids = (notas || []).map(n => n.id);
       if(!ids.length){
@@ -3095,14 +3403,15 @@ if(USAR_IMPRESION_SILENCIOSA){
       const byClient = {};
       (notas || []).forEach(n=>{
         const c = productoBonito(n.clientes?.nombre || '—');
-        if(!byClient[c]) byClient[c] = { items: [], totalImporte: 0 };
+        if(!byClient[c]) byClient[c] = { items: [], totalImporte: 0, notas: [] };
+        byClient[c].notas.push(n);
       });
 
       detalles.forEach(d=>{
         const nota = (notas || []).find(x => x.id === d.nota_id);
         const cliente = productoBonito(nota?.clientes?.nombre || '—');
 
-        if(!byClient[cliente]) byClient[cliente] = { items: [], totalImporte: 0 };
+        if(!byClient[cliente]) byClient[cliente] = { items: [], totalImporte: 0, notas: [] };
 
         byClient[cliente].items.push({
           folio: nota?.folio || '',
@@ -3115,6 +3424,31 @@ if(USAR_IMPRESION_SILENCIOSA){
 
         byClient[cliente].totalImporte += Number(d.importe || 0);
       });
+
+      // ---- Estado de pago ----
+      const estadoPagoCliente = (pack)=>{
+        const ns = pack.notas || [];
+        const pagadas = ns.filter(n => n.pagado).length;
+        if(ns.length && pagadas === ns.length) return 'pagado';
+        if(pagadas === 0) return 'pendiente';
+        return 'parcial';
+      };
+      const BADGE = {
+        pagado:    '<span class="badge ok">PAGADO</span>',
+        pendiente: '<span class="badge no">PENDIENTE</span>',
+        parcial:   '<span class="badge parcial">PAGO PARCIAL</span>'
+      };
+
+      const importePorNota = {};
+      detalles.forEach(d=>{
+        importePorNota[d.nota_id] = (importePorNota[d.nota_id] || 0) + Number(d.importe || 0);
+      });
+
+      const notasPagadas = (notas || []).filter(n => n.pagado);
+      const cobradoDia = notasPagadas.reduce((a, n)=> a + Number(importePorNota[n.id] || 0), 0);
+      const clientesPendientes = Object.entries(byClient)
+        .filter(([, p]) => estadoPagoCliente(p) !== 'pagado')
+        .map(([c, p]) => ({ cliente: c, estado: estadoPagoCliente(p) }));
 
       const resumenProductos = {};
 
@@ -3144,9 +3478,10 @@ if(USAR_IMPRESION_SILENCIOSA){
 
       const totalDia = detalles.reduce((a, b) => a + Number(b.importe || 0), 0);
       const totalKgDia = detalles.reduce((a, b) => a + Number(b.cantidad || 0), 0);
+      const pendienteDia = totalDia - cobradoDia;
 
       diaResumen.textContent =
-        `Clientes: ${Object.keys(byClient).length} · Kg totales: ${to2(totalKgDia)} · Total día: $${to2(totalDia)}`;
+        `Clientes: ${Object.keys(byClient).length} · Kg totales: ${to2(totalKgDia)} · Total día: $${to2(totalDia)} · Pagadas: ${notasPagadas.length}/${(notas||[]).length}`;
 
       let html = `
         <!DOCTYPE html>
@@ -3162,6 +3497,8 @@ if(USAR_IMPRESION_SILENCIOSA){
               font-size: 11px;
               margin: 0;
               color: #111;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
 
             h3 {
@@ -3191,6 +3528,42 @@ if(USAR_IMPRESION_SILENCIOSA){
               background: #fafafa;
             }
 
+            .pend-box {
+              border: 2px solid #b91c1c;
+              background: #fef2f2;
+              color: #7f1d1d;
+              padding: 2.5mm 3mm;
+              border-radius: 3mm;
+              margin-bottom: 4mm;
+              font-weight: 700;
+            }
+            .ok-box {
+              border: 2px solid #0a7a3b;
+              background: #eef7f0;
+              color: #0a7a3b;
+              padding: 2.5mm 3mm;
+              border-radius: 3mm;
+              margin-bottom: 4mm;
+              font-weight: 700;
+            }
+
+            .badge {
+              display: inline-block;
+              padding: 1px 6px;
+              border-radius: 4px;
+              color: #fff;
+              font-weight: 900;
+              font-size: 10px;
+              letter-spacing: .3px;
+              vertical-align: middle;
+            }
+            .badge.ok { background: #0a7a3b; }
+            .badge.no { background: #b91c1c; }
+            .badge.parcial { background: #d97706; }
+
+            .okTxt { color: #0a7a3b; font-weight: 700; }
+            .noTxt { color: #b91c1c; font-weight: 700; }
+
             #columns {
               column-count: 2;
               column-gap: 5mm;
@@ -3200,7 +3573,12 @@ if(USAR_IMPRESION_SILENCIOSA){
               break-inside: avoid;
               page-break-inside: avoid;
               margin-bottom: 3mm;
+              padding-left: 2mm;
+              border-left: 4px solid #ccc;
             }
+            .client-group.est-pagado { border-left-color: #0a7a3b; }
+            .client-group.est-pendiente { border-left-color: #b91c1c; }
+            .client-group.est-parcial { border-left-color: #d97706; }
 
             table {
               width: 100%;
@@ -3238,7 +3616,22 @@ if(USAR_IMPRESION_SILENCIOSA){
             Kg totales del día: ${to2(totalKgDia)}
             &nbsp; · &nbsp;
             Total día: $${to2(totalDia)}
+            &nbsp; · &nbsp;
+            Notas pagadas: <b>${notasPagadas.length} de ${(notas||[]).length}</b>
+            &nbsp; · &nbsp;
+            <span class="okTxt">Cobrado: $${to2(cobradoDia)}</span>
+            &nbsp; · &nbsp;
+            <span class="noTxt">Pendiente: $${to2(pendienteDia)}</span>
           </div>
+
+          ${clientesPendientes.length ? `
+            <div class="pend-box">
+              ❌ Pendientes de pago (${clientesPendientes.length}):
+              ${clientesPendientes.map(x => `${escRev(x.cliente)}${x.estado === 'parcial' ? ' (parcial)' : ''}`).join(' · ')}
+            </div>
+          ` : `
+            <div class="ok-box">✅ Todos los clientes del día están pagados.</div>
+          `}
 
           <div class="section summary-box">
             <h4>Resumen general por producto</h4>
@@ -3290,9 +3683,19 @@ if(USAR_IMPRESION_SILENCIOSA){
 
         const kgTotalCliente = (pack.items || []).reduce((acc, d)=> acc + Number(d.cantidad || 0), 0);
 
+        const estado = estadoPagoCliente(pack);
+        const lineasFolios = (pack.notas || []).map(n => n.pagado
+          ? `<span class="okTxt">✅ ${escRev(n.folio)} — pagado${n.pagado_at ? ' ' + new Date(n.pagado_at).toLocaleString() : ''}</span>`
+          : `<span class="noTxt">❌ ${escRev(n.folio)} — pendiente</span>`
+        ).join('<br>');
+
         html += `
-          <div class="client-group">
-            <h4>${cliente} — Total: $${to2(pack.totalImporte)}</h4>
+          <div class="client-group est-${estado}">
+            <h4>${cliente} ${BADGE[estado]} — Total: $${to2(pack.totalImporte)}</h4>
+
+            <div class="small" style="margin-bottom:1.5mm;">
+              ${lineasFolios}
+            </div>
 
             <div class="small" style="margin-bottom:2mm;">
               Kg totales del cliente: <b>${to2(kgTotalCliente)}</b>
@@ -3352,7 +3755,7 @@ if(USAR_IMPRESION_SILENCIOSA){
 
       const { data: notas } = await sb
         .from('notas_credito')
-        .select('id, folio, fecha, clientes(nombre)')
+        .select('id, folio, fecha, pagado, pagado_at, clientes(nombre)')
         .eq('fecha', f);
 
       const ids = (notas||[]).map(n=>n.id);
@@ -3363,7 +3766,7 @@ if(USAR_IMPRESION_SILENCIOSA){
         .select('nota_id, producto, cantidad, piezas, precio, importe, created_at')
         .in('nota_id', ids);
 
-      const head = ['Cliente','Folio','Fecha','Hora','Producto','Kg','Piezas','Precio','Importe'];
+      const head = ['Cliente','Folio','Fecha','Hora','Producto','Kg','Piezas','Precio','Importe','Pago','Pagado el'];
 
       const rows = (det||[]).map(d=>{
         const n = (notas||[]).find(x=>x.id===d.nota_id) || {};
@@ -3376,7 +3779,9 @@ if(USAR_IMPRESION_SILENCIOSA){
           to2(d.cantidad),
           (d.piezas != null ? d.piezas : ''),
           to2(d.precio),
-          to2(d.importe)
+          to2(d.importe),
+          (n.pagado ? 'PAGADO' : 'PENDIENTE'),
+          (n.pagado_at ? new Date(n.pagado_at).toLocaleString() : '')
         ];
       });
 
