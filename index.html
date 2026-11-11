@@ -3153,6 +3153,16 @@ function confirmarReimpresion(nota){
   );
 }
 
+// 🖨️ Copias del ticket 80mm por cliente (por ID, así no se rompe si cambia el nombre).
+// Todos los demás clientes imprimen COPIAS_TICKET_DEFAULT.
+const COPIAS_TICKET_DEFAULT = 2;
+const COPIAS_TICKET_POR_CLIENTE = {
+  '7b16eaeb-e4eb-4484-8b5d-703bd5852545': 4 // Jose Sebo
+};
+function copiasTicketCliente(cliente_id){
+  return COPIAS_TICKET_POR_CLIENTE[String(cliente_id || '')] || COPIAS_TICKET_DEFAULT;
+}
+
 async function imprimirNota80mm(nota_id, opts = {}){
   await saveNotaObs();
 
@@ -3364,7 +3374,8 @@ async function imprimirNota80mm(nota_id, opts = {}){
 
 if(USAR_IMPRESION_SILENCIOSA){
   try{
-    for(let i = 0; i < 2; i++){ // 👈 imprime 2 veces
+    const copias = copiasTicketCliente(nota.cliente_id); // 👈 2 por defecto; Jose Sebo 4
+    for(let i = 0; i < copias; i++){
       const res = await fetch(IMPRESION_SILENCIOSA_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
