@@ -1013,24 +1013,12 @@ async function imprimirSilenciosoTexto(texto){
     }
 
     function applyBoxRules(productoOriginal, qty){
-      const name = String(productoOriginal || "").toUpperCase();
+      void productoOriginal;
       const q = Number(qty);
 
-      const isCajaCompleta =
-        name.includes("CAJA") &&
-        name.includes("COMPLETA") &&
-        Number.isFinite(q) &&
-        Math.abs(q - 1) < 1e-9;
-
-      let kgForDb = Number.isFinite(q) ? q : 0;
-
-      if(isCajaCompleta){
-        if(name.includes("CANADIAN")){
-          kgForDb = CAJA_KG_CANADIAN;
-        } else if(name.includes("AZUL") || name.includes("NATIONAL") || name.includes("WASHINGTON")){
-          kgForDb = CAJA_KG;
-        }
-      }
+      // Las cajas completas ya no se convierten a 27.22 / 27.28 kg:
+      // se quedan como 1 por caja, igual que la cantidad que llega.
+      const kgForDb = Number.isFinite(q) ? q : 0;
 
       return { kgForDb };
     }
@@ -1699,9 +1687,9 @@ scanFolio?.addEventListener('keydown', (e)=>{
       if(PRECIOS[n]) pPrecio.value = PRECIOS[n];
     }
 
-    // Regla de cajas: con solo poner las piezas se calculan los kilos.
-    //   CAJA AZUL COMPLETA      -> 27.22 kg por caja
-    //   CAJA CANADIAN COMPLETA  -> 27.28 kg por caja
+    // Regla de cajas: con solo poner las piezas se llenan los kilos.
+    //   CAJA AZUL COMPLETA / CAJA CANADIAN COMPLETA -> 1 por caja (sale "1 y 1")
+    //   (antes se convertía a 27.22 / 27.28 kg por caja)
     // (se dejan también los nombres viejos por si se reactivan)
     function pesoCajaFija(prodName){
       const n = normalizeKey(prodName);
@@ -1723,10 +1711,9 @@ scanFolio?.addEventListener('keydown', (e)=>{
       const pz = Number(pPzas.value || 0);
       if(!pz || pz <= 0) return;
 
-      const pesoCaja = pesoCajaFija(prod);
-
-      const kg = pz * pesoCaja;
-      pKg.value = to2(kg);
+      // Las cajas se cuentan por unidad: 1 caja = 1 en kilos y 1 en piezas
+      // (ya no se convierte a 27.22 / 27.28 kg).
+      pKg.value = to2(pz);
     }
 
     async function saveClientPhone(){
