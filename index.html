@@ -1699,9 +1699,26 @@ scanFolio?.addEventListener('keydown', (e)=>{
       }
     }
 
+    // Busca "Venta Bodega" directo en Supabase (no solo en la lista cargada),
+    // así nunca se crea un duplicado aunque la lista no haya terminado de cargar.
+    async function buscarVentaBodegaEnBD(){
+      const { data, error } = await sb
+        .from('clientes')
+        .select('id, nombre, telefono')
+        .ilike('nombre', VENTA_BODEGA_NOMBRE)
+        .limit(1);
+      if(error){ console.error(error); return null; }
+      return (data && data[0]) || null;
+    }
+
     async function getOrCreateVentaBodegaClient(){
       let cliente = CLIENTES.find(c => normalizeName(c.nombre) === normalizeName(VENTA_BODEGA_NOMBRE));
+      if(cliente) return cliente;
 
+      // 1) Antes de crear, revisar en la base de datos
+      cliente = await buscarVentaBodegaEnBD();
+
+      // 2) Solo si de verdad no existe, crearlo
       if(!cliente){
         const row = {
           id: crypto.randomUUID(),
@@ -1710,17 +1727,17 @@ scanFolio?.addEventListener('keydown', (e)=>{
         };
 
         const { error } = await sb.from('clientes').insert(row);
-        if(error){
+        // 23505 = ya existe (candado único en la BD): usar el existente
+        if(error && error.code !== '23505'){
           console.error(error);
           alert('No se pudo crear el cliente Venta Bodega');
           return null;
         }
-
-        await loadClientes();
-        cliente = CLIENTES.find(c => normalizeName(c.nombre) === normalizeName(VENTA_BODEGA_NOMBRE));
+        cliente = await buscarVentaBodegaEnBD();
       }
 
-      return cliente || null;
+      await loadClientes();
+      return CLIENTES.find(c => String(c.id) === String(cliente?.id)) || cliente || null;
     }
 
     async function crearNuevaNotaVentaBodega(){
