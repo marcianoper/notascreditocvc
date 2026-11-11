@@ -173,8 +173,6 @@
     }
     .menuPanel button:hover{ background:#f6f7f8; }
     .menuPanel button.danger{ border-color:#fee2e2; color:#b91c1c; }
-    .menuPanel button.principal{ background:#0a7a3b; color:#fff; border-color:#0a7a3b; }
-    .menuPanel button.principal:hover{ background:#086131; }
     #btnImprimirCerrar{ width:100%; margin-top:10px; padding:14px; font-size:16px; font-weight:900; background:#0a7a3b; color:#fff; border:none; }
     #btnImprimirCerrar:disabled{ opacity:.6; cursor:wait; }
 
@@ -2457,7 +2455,6 @@ scanFolio?.addEventListener('keydown', (e)=>{
             <details class="actionMenu">
               <summary>Acciones ▾</summary>
               <div class="menuPanel">
-                <button type="button" class="principal" data-ipc="${r.id}">🖨️ Imprimir, WA y cerrar</button>
                 <button type="button" data-usea="${r.id}" data-cid="${r.cliente_id}">Usar en A</button>
                 <button type="button" data-useb="${r.id}" data-cid="${r.cliente_id}">Usar en B</button>
                 <button type="button" data-a4="${r.id}">Imprimir A4</button>
@@ -2470,10 +2467,6 @@ scanFolio?.addEventListener('keydown', (e)=>{
         </tr>
       `).join('');
 
-      bandejaBody.querySelectorAll('[data-ipc]').forEach(b=> b.onclick = ()=>{
-        cerrarTodosLosMenus();
-        imprimirEnviarYCerrar(b.dataset.ipc);
-      });
 
       bandejaBody.querySelectorAll('[data-usea]').forEach(b=> b.onclick = ()=>{
         cerrarTodosLosMenus();
@@ -3908,7 +3901,7 @@ if(USAR_IMPRESION_SILENCIOSA){
 
         if(closeError){
           console.error(closeError);
-          return alert('⚠️ La nota se imprimió, pero NO se pudo cerrar.\nIntenta de nuevo con "Cerrar sin imprimir" en la bandeja.');
+          return alert('⚠️ La nota se imprimió, pero NO se pudo cerrar.\nCiérrala desde Acciones → Cerrar en la bandeja.');
         }
 
         if(notaA?.id === nota_id){ notaA = null; if(chA){ sb.removeChannel(chA); chA = null; } }
