@@ -173,6 +173,12 @@
     }
     .menuPanel button:hover{ background:#f6f7f8; }
     .menuPanel button.danger{ border-color:#fee2e2; color:#b91c1c; }
+    .menuPanel button.principal{ background:#0a7a3b; color:#fff; border-color:#0a7a3b; }
+    .menuPanel button.principal:hover{ background:#086131; }
+    tr.notaCerrada td{ opacity:.72; }
+    .printStatus.cerrada{ background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+    #btnImprimirCerrar{ width:100%; margin-top:10px; padding:14px; font-size:16px; font-weight:900; background:#0a7a3b; color:#fff; border:none; }
+    #btnImprimirCerrar:disabled{ opacity:.6; cursor:wait; }
 
     .printStatus{
       display:inline-flex;
@@ -519,11 +525,13 @@
             </tr>
           </tfoot>
         </table>
+
+        <button class="btn" id="btnImprimirCerrar" type="button">🖨️ Imprimir, enviar WhatsApp y cerrar nota</button>
       </section>
     </div>
 
     <section class="card">
-      <h2>📥 Notas abiertas hoy (todas)</h2>
+      <h2>📥 Notas del día (abiertas y cerradas)</h2>
 
       <div class="bandejaTools">
         <div style="flex:1; min-width:220px">
@@ -1356,6 +1364,11 @@ $('#btnImprimir')?.addEventListener('click', ()=> activeNota() && imprimirNotaA4
 $('#btnImprimir80')?.addEventListener('click', ()=> activeNota() && imprimirNota80mm(activeNota().id));
 $('#btnCSV')?.addEventListener('click', ()=> activeNota() && exportNotaCSV(activeNota().id));
 $('#btnCerrar')?.addEventListener('click', cerrarNota);
+$('#btnImprimirCerrar')?.addEventListener('click', ()=>{
+  const n = activeNota();
+  if(!n) return alert('No hay una nota activa. Selecciona cliente y dale Continuar.');
+  imprimirEnviarYCerrar(n.id);
+});
 
 $('#btnNuevoCliente')?.addEventListener('click', addCliente);
 $('#btnAbrirVentaBodega')?.addEventListener('click', abrirVentaBodegaDirecto);
@@ -2405,7 +2418,6 @@ scanFolio?.addEventListener('keydown', (e)=>{
         .from('notas_credito')
         .select('id,folio,estado,impreso,impreso_at,impresiones,whatsapp_enviado,whatsapp_enviado_at,whatsapp_envios,pagado,pagado_at,clientes(nombre),cliente_id,created_at')
         .eq('fecha', f)
-        .eq('estado','abierta')
         .order('created_at', { ascending:false });
 
       if(error){
@@ -2424,11 +2436,29 @@ scanFolio?.addEventListener('keydown', (e)=>{
         });
       }
 
-      bandejaBody.innerHTML = rows.map(r=> `
-        <tr>
+      // Abiertas primero (son las pendientes), luego las cerradas
+      rows.sort((a,b)=> ((a.estado||'abierta')==='abierta' ? 0 : 1) - ((b.estado||'abierta')==='abierta' ? 0 : 1));
+
+      bandejaBody.innerHTML = rows.map(r=>{
+        const abierta = (r.estado || 'abierta') === 'abierta';
+        const acciones = abierta ? `
+                <button type="button" class="principal" data-ipc="${r.id}">🖨️ Imprimir, WA y cerrar</button>
+                <button type="button" data-usea="${r.id}" data-cid="${r.cliente_id}">Usar en A</button>
+                <button type="button" data-useb="${r.id}" data-cid="${r.cliente_id}">Usar en B</button>
+                <button type="button" data-a4="${r.id}">Imprimir A4</button>
+                <button type="button" data-wa="${r.id}">Enviar WA</button>
+                <button type="button" class="danger" data-close="${r.id}">Cerrar sin imprimir</button>` : `
+                <button type="button" data-id80="${r.id}">Reimprimir 80mm</button>
+                <button type="button" data-a4="${r.id}">Imprimir A4</button>
+                <button type="button" data-wa="${r.id}">Enviar WA</button>
+                <button type="button" class="danger" data-reabrir="${r.id}">Reabrir (corregir)</button>`;
+        return `
+        <tr class="${abierta ? '' : 'notaCerrada'}">
           <td>${r.folio}</td>
           <td>${productoBonito(r.clientes?.nombre||'')}</td>
-          <td>${r.estado||'abierta'}</td>
+          <td>${abierta
+            ? `<span class="printStatus pending">🟠 Abierta</span>`
+            : `<span class="printStatus cerrada">🔒 Cerrada</span>`}</td>
           <td>
             ${r.impreso
               ? `<span class="printStatus done" title="${r.impreso_at ? new Date(r.impreso_at).toLocaleString() : 'Impresión registrada'}">✅ Impresa${Number(r.impresiones||0) > 1 ? ` · ${r.impresiones} veces` : ''}</span>`
@@ -2447,18 +2477,21 @@ scanFolio?.addEventListener('keydown', (e)=>{
           <td style="text-align:right">
             <details class="actionMenu">
               <summary>Acciones ▾</summary>
-              <div class="menuPanel">
-                <button type="button" data-usea="${r.id}" data-cid="${r.cliente_id}">Usar en A</button>
-                <button type="button" data-useb="${r.id}" data-cid="${r.cliente_id}">Usar en B</button>
-                <button type="button" data-a4="${r.id}">Imprimir A4</button>
-                <button type="button" data-id80="${r.id}">Imprimir 80mm</button>
-                <button type="button" data-wa="${r.id}">Enviar WA</button>
-                <button type="button" class="danger" data-close="${r.id}">Cerrar</button>
+              <div class="menuPanel">${acciones}
               </div>
             </details>
           </td>
-        </tr>
-      `).join('');
+        </tr>`;
+      }).join('');
+
+      bandejaBody.querySelectorAll('[data-ipc]').forEach(b=> b.onclick = ()=>{
+        cerrarTodosLosMenus();
+        imprimirEnviarYCerrar(b.dataset.ipc);
+      });
+      bandejaBody.querySelectorAll('[data-reabrir]').forEach(b=> b.onclick = ()=>{
+        cerrarTodosLosMenus();
+        reabrirNota(b.dataset.reabrir);
+      });
 
       bandejaBody.querySelectorAll('[data-usea]').forEach(b=> b.onclick = ()=>{
         cerrarTodosLosMenus();
@@ -3125,7 +3158,7 @@ function confirmarReimpresion(nota){
   );
 }
 
-async function imprimirNota80mm(nota_id){
+async function imprimirNota80mm(nota_id, opts = {}){
   await saveNotaObs();
 
   const { data: nota, error: notaError } = await sb
@@ -3140,7 +3173,7 @@ async function imprimirNota80mm(nota_id){
     return false;
   }
 
-  if(!confirmarReimpresion(nota)) return false;
+  if(!opts.yaConfirmado && !confirmarReimpresion(nota)) return false;
 
   if(!(await revisarAntesDeImprimir(nota))) return false;
 
@@ -3829,6 +3862,117 @@ if(USAR_IMPRESION_SILENCIOSA){
       a.download = `nota_${nota?.folio || 'sin_folio'}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    // ===================== 🖨️ UN SOLO BOTÓN: IMPRIMIR + CERRAR + WHATSAPP =====================
+    // El sistema de la otra compañía solo acepta notas CERRADAS al escanear el folio.
+    // Orden: 1) revisar e imprimir  2) cerrar en Supabase  3) mandar WhatsApp.
+    // Si el WhatsApp falla, la nota se queda cerrada igual (solo avisa para reenviar).
+    let ipcBusy = false;
+
+    async function imprimirEnviarYCerrar(nota_id){
+      if(!nota_id) return;
+      if(ipcBusy) return;
+      ipcBusy = true;
+      const btn = document.getElementById('btnImprimirCerrar');
+      if(btn) btn.disabled = true;
+
+      try{
+        const { data: nota, error: notaError } = await sb
+          .from('notas_credito')
+          .select('*')
+          .eq('id', nota_id)
+          .single();
+
+        if(notaError || !nota) return alert('No se pudo cargar la nota.');
+
+        if((nota.estado || 'abierta') !== 'abierta'){
+          return alert(`La nota ${nota.folio} ya está cerrada.\nSi necesitas corregirla usa "Reabrir" en la bandeja.`);
+        }
+
+        const { data: det, error: detError } = await sb
+          .from('notas_detalle')
+          .select('id')
+          .eq('nota_id', nota_id)
+          .limit(1);
+
+        if(detError) return alert('No pude revisar los productos de la nota.');
+        if(!(det || []).length) return alert('Esta nota todavía no tiene productos.');
+
+        // 1) Imprimir (incluye la revisión de casos raros; si la corrigen, no se cierra)
+        let imprimir = true;
+        if(nota.impreso){
+          const cuando = nota.impreso_at ? new Date(nota.impreso_at).toLocaleString() : 'fecha no registrada';
+          imprimir = confirm(
+            `Esta nota ya se imprimió (${cuando}).\n\n` +
+            `Aceptar = reimprimir, cerrar y enviar\n` +
+            `Cancelar = solo cerrar y enviar (sin imprimir otra vez)`
+          );
+        }
+
+        if(imprimir){
+          const impreso = await imprimirNota80mm(nota_id, { yaConfirmado:true });
+          if(impreso === false) return; // canceló en la revisión o falló la carga
+        }
+
+        // 2) Cerrar
+        const { error: closeError } = await sb
+          .from('notas_credito')
+          .update({ estado:'cerrada' })
+          .eq('id', nota_id);
+
+        if(closeError){
+          console.error(closeError);
+          return alert('⚠️ La nota se imprimió, pero NO se pudo cerrar.\nIntenta de nuevo con "Cerrar sin imprimir" en la bandeja.');
+        }
+
+        if(notaA?.id === nota_id){ notaA = null; if(chA){ sb.removeChannel(chA); chA = null; } }
+        if(notaB?.id === nota_id){ notaB = null; if(chB){ sb.removeChannel(chB); chB = null; } }
+
+        await renderVista();
+        await loadBandeja();
+
+        // 3) WhatsApp (si falla no reabre la nota; waNota muestra el aviso)
+        await waNota(nota_id);
+      }catch(err){
+        console.error(err);
+        alert('Error: ' + (err?.message || err));
+      }finally{
+        ipcBusy = false;
+        if(btn) btn.disabled = false;
+      }
+    }
+
+    async function reabrirNota(nota_id){
+      if(!nota_id) return;
+
+      const { data: nota } = await sb
+        .from('notas_credito')
+        .select('id,folio')
+        .eq('id', nota_id)
+        .single();
+
+      if(!nota) return alert('No se pudo cargar la nota.');
+
+      if(!confirm(
+        `¿Reabrir la nota ${nota.folio} para corregirla?\n\n` +
+        `⚠️ Mientras esté abierta, el sistema de la otra compañía NO la va a poder escanear.\n` +
+        `Si su oficina ya la escaneó, avísales de la corrección.\n\n` +
+        `Al terminar, vuelve a darle "Imprimir, WhatsApp y cerrar".`
+      )) return;
+
+      const { error } = await sb
+        .from('notas_credito')
+        .update({ estado:'abierta' })
+        .eq('id', nota_id);
+
+      if(error){
+        console.error(error);
+        return alert('No se pudo reabrir la nota.');
+      }
+
+      await loadBandeja();
+      alert(`✅ Nota ${nota.folio} reabierta. Cárgala en A o B para corregirla.`);
     }
 
     async function cerrarNotaById(nota_id){
