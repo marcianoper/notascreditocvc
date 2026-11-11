@@ -1610,9 +1610,66 @@ scanFolio?.addEventListener('keydown', (e)=>{
       }
 
       CLIENTES = data || [];
-      cliSelect.innerHTML = (CLIENTES||[])
-        .map(c=> `<option value="${c.id}">${c.nombre}</option>`)
-        .join('');
+      renderClientesPorRuta();
+    }
+
+    // 🚚 Lista de clientes agrupada por ruta (Ruta Irapuato, Ruta Morelia, ...).
+    // La ruta sale del nombre: "Juan - Irapuato" → Ruta Irapuato.
+    // También reconoce nombres que terminan en "san felipe" sin guion.
+    const RUTAS_NOMBRE_BONITO = {
+      'irapuato':'Irapuato', 'morelia':'Morelia', 'san felipe':'San Felipe',
+      'la piedad':'La Piedad', 'penjamo':'Pénjamo', 'silao':'Silao', 'aldama':'Aldama'
+    };
+    const RUTA_SIN_RUTA = 'Sin ruta';
+
+    function sinAcentos(s){
+      return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
+    }
+
+    function rutaDeCliente(nombre){
+      const n = (nombre||'').trim();
+      let ruta = '';
+      const i = n.lastIndexOf(' - ');
+      if(i > 0){
+        ruta = n.slice(i + 3).trim();
+      }else if(/san felipe$/i.test(sinAcentos(n))){
+        ruta = 'san felipe';
+      }
+      if(!ruta) return RUTA_SIN_RUTA;
+      const key = sinAcentos(ruta).toLowerCase().replace(/\s+/g,' ');
+      return RUTAS_NOMBRE_BONITO[key]
+        || key.replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function escOpt(s){
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function renderClientesPorRuta(){
+      const seleccionado = cliSelect.value;
+      const grupos = {};
+      (CLIENTES||[]).forEach(c=>{
+        const r = rutaDeCliente(c.nombre);
+        (grupos[r] = grupos[r] || []).push(c);
+      });
+
+      const comparar = (a,b)=> a.localeCompare(b, 'es', { sensitivity:'base' });
+      const rutas = Object.keys(grupos)
+        .filter(r => r !== RUTA_SIN_RUTA)
+        .sort(comparar);
+      if(grupos[RUTA_SIN_RUTA]) rutas.push(RUTA_SIN_RUTA);
+
+      cliSelect.innerHTML = rutas.map(r=>{
+        const label = r === RUTA_SIN_RUTA ? 'Sin ruta' : `Ruta ${r}`;
+        const opts = grupos[r]
+          .slice()
+          .sort((a,b)=> comparar(a.nombre||'', b.nombre||''))
+          .map(c=> `<option value="${c.id}">${escOpt(c.nombre)}</option>`)
+          .join('');
+        return `<optgroup label="${escOpt(label)}">${opts}</optgroup>`;
+      }).join('');
+
+      if(seleccionado) cliSelect.value = seleccionado;
     }
 
     async function loadProductos(){
